@@ -43,12 +43,27 @@ app.post('/items', (req, res) => {
     db.run(
         'INSERT INTO items (url, name, target_price, image_url) VALUES (?, ?, ?, ?)',
         [url, name, target_price, image_url],
-        (err) => {
+        function(err) {
             if (err) {
                 console.error(err);
                 return res.status(500).send('Error creating item');
             }
-            res.redirect('/');
+            
+            // Create initial scraping task
+            const itemId = this.lastID;
+            const scheduledTime = new Date().toISOString();
+            
+            db.run(
+                'INSERT INTO scraping_tasks (item_id, url, scheduled_time) VALUES (?, ?, ?)',
+                [itemId, url, scheduledTime],
+                (err) => {
+                    if (err) {
+                        console.error('Error creating scraping task:', err);
+                        // Continue with redirect even if scraping task creation fails
+                    }
+                    res.redirect('/');
+                }
+            );
         }
     );
 });

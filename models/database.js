@@ -30,6 +30,18 @@ db.serialize(() => {
         price REAL NOT NULL,
         FOREIGN KEY (item_id) REFERENCES items (id)
     )`);
+
+    // Create scraping_tasks table
+    db.run(`CREATE TABLE IF NOT EXISTS scraping_tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id INTEGER NOT NULL,
+        url TEXT NOT NULL,
+        scheduled_time DATETIME NOT NULL,
+        execution_time DATETIME,
+        success BOOLEAN,
+        results_path TEXT,
+        FOREIGN KEY (item_id) REFERENCES items (id)
+    )`);
 });
 
 module.exports = db; 
