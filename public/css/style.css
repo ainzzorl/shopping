@@ -1,0 +1,22 @@
+/* Custom styles */
+.table img {
+    max-height: 50px;
+    width: auto;
+}
+
+.card img {
+    max-height: 200px;
+    width: auto;
+    object-fit: contain;
+}
+
+/* Add some spacing between inline form elements */
+.d-inline {
+    margin-left: 0.5rem;
+}
+
+/* Make sure tables don't overflow on mobile */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+} 

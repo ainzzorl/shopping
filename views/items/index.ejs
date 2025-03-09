@@ -1,0 +1,43 @@
+<div class="row">
+    <div class="col">
+        <h1>Items</h1>
+        <a href="/items/new" class="btn btn-primary mb-3">Add New Item</a>
+        
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Target Price</th>
+                        <th>Current Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% items.forEach(item => { %>
+                        <tr>
+                            <td>
+                                <a href="<%= item.url %>" target="_blank" class="text-decoration-none">
+                                    <%= item.name %>
+                                </a>
+                            </td>
+                            <td>$<%= item.target_price.toFixed(2) %></td>
+                            <td>
+                                <span class="badge <%= item.enabled ? 'bg-success' : 'bg-secondary' %>">
+                                    <%= item.enabled ? 'Enabled' : 'Disabled' %>
+                                </span>
+                            </td>
+                            <td>
+                                <a href="/items/<%= item.id %>" class="btn btn-sm btn-info">View</a>
+                                <a href="/items/<%= item.id %>/edit" class="btn btn-sm btn-warning">Edit</a>
+                                <form action="/items/<%= item.id %>/delete" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div> 
