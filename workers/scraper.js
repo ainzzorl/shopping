@@ -80,7 +80,7 @@ async function scrapePrice(url) {
     
     try {
         const page = await browser.newPage();
-        await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+        await page.goto(url, { timeout: 30000 });
         
         // Take a screenshot
         const screenshot = await page.screenshot();
