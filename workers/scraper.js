@@ -32,11 +32,11 @@ async function getPendingTasks() {
     });
 }
 
-async function updateTaskStatus(taskId, success, resultsPath = null) {
+async function updateTaskStatus(taskId, success, screenshotPath = null, htmlPath = null) {
     return new Promise((resolve, reject) => {
         db.run(
-            'UPDATE scraping_tasks SET execution_time = CURRENT_TIMESTAMP, success = ?, results_path = ? WHERE id = ?',
-            [success ? 1 : 0, resultsPath, taskId],
+            'UPDATE scraping_tasks SET execution_time = CURRENT_TIMESTAMP, success = ?, screenshot_path = ?, html_path = ? WHERE id = ?',
+            [success ? 1 : 0, screenshotPath, htmlPath, taskId],
             (err) => {
                 if (err) reject(err);
                 else resolve();
@@ -92,6 +92,9 @@ async function scrapePrice(url) {
         // Take a screenshot
         const screenshot = await page.screenshot();
         
+        // Get the page HTML
+        const html = await page.content();
+        
         // Extract price using og:price:amount meta tag
         const price = await page.evaluate(() => {
             // First try the og:price:amount meta tag
@@ -127,7 +130,7 @@ async function scrapePrice(url) {
         });
         
         await browser.close();
-        return { price, screenshot };
+        return { price, screenshot, html };
     } catch (error) {
         await browser.close();
         throw error;
@@ -139,7 +142,7 @@ async function processTask(task) {
     
     try {
         // Perform the scraping
-        const { price, screenshot } = await scrapePrice(task.url);
+        const { price, screenshot, html } = await scrapePrice(task.url);
         
         if (!price) {
             throw new Error('Could not extract price');
@@ -149,11 +152,15 @@ async function processTask(task) {
         const screenshotPath = path.join(RESULTS_DIR, `task_${task.id}_${Date.now()}.png`);
         await fs.writeFile(screenshotPath, screenshot);
         
+        // Save the HTML
+        const htmlPath = path.join(RESULTS_DIR, `task_${task.id}_${Date.now()}.html`);
+        await fs.writeFile(htmlPath, html);
+        
         // Save the price datapoint
         await saveDataPoint(task.item_id, price);
         
-        // Update task status
-        await updateTaskStatus(task.id, true, screenshotPath);
+        // Update task status with separate paths
+        await updateTaskStatus(task.id, true, screenshotPath, htmlPath);
         
         console.log(`Successfully processed task ${task.id}`);
     } catch (error) {

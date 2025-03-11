@@ -49,7 +49,8 @@ db.serialize(() => {
         scheduled_time DATETIME NOT NULL,
         execution_time DATETIME,
         success BOOLEAN,
-        results_path TEXT,
+        screenshot_path TEXT,
+        html_path TEXT,
         FOREIGN KEY (item_id) REFERENCES items (id)
     )`);
 });
