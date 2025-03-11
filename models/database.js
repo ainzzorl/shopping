@@ -1,27 +1,30 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const sqlite3 = require("sqlite3").verbose();
+const path = require("path");
 
 // Create database connection
-const db = new sqlite3.Database(path.join(__dirname, '../shopping.db'), (err) => {
+const db = new sqlite3.Database(
+  path.join(__dirname, "../shopping.db"),
+  (err) => {
     if (err) {
-        console.error('Error connecting to database:', err);
+      console.error("Error connecting to database:", err);
     } else {
-        console.log('Connected to SQLite database');
+      console.log("Connected to SQLite database");
     }
-});
+  }
+);
 
 // Initialize database tables
 db.serialize(() => {
-    // Create stores table
-    db.run(`CREATE TABLE IF NOT EXISTS stores (
+  // Create stores table
+  db.run(`CREATE TABLE IF NOT EXISTS stores (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         website TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
-    // Create items table
-    db.run(`CREATE TABLE IF NOT EXISTS items (
+  // Create items table
+  db.run(`CREATE TABLE IF NOT EXISTS items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         url TEXT NOT NULL,
         name TEXT NOT NULL,
@@ -32,8 +35,8 @@ db.serialize(() => {
         FOREIGN KEY (store_id) REFERENCES stores (id)
     )`);
 
-    // Create item_datapoints table
-    db.run(`CREATE TABLE IF NOT EXISTS item_datapoints (
+  // Create item_datapoints table
+  db.run(`CREATE TABLE IF NOT EXISTS item_datapoints (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         item_id INTEGER NOT NULL,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -41,8 +44,8 @@ db.serialize(() => {
         FOREIGN KEY (item_id) REFERENCES items (id)
     )`);
 
-    // Create scraping_tasks table
-    db.run(`CREATE TABLE IF NOT EXISTS scraping_tasks (
+  // Create scraping_tasks table
+  db.run(`CREATE TABLE IF NOT EXISTS scraping_tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         item_id INTEGER NOT NULL,
         url TEXT NOT NULL,
@@ -55,4 +58,4 @@ db.serialize(() => {
     )`);
 });
 
-module.exports = db; 
+module.exports = db;
