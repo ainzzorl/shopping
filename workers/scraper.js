@@ -75,6 +75,8 @@ async function saveDataPoint(itemId, price) {
 async function scrapePrice(url) {
     const browser = await puppeteer.launch({
         headless: 'new',
+        product: 'chrome',
+        executablePath: '/usr/bin/chromium',
         args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     
