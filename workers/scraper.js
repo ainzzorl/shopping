@@ -89,9 +89,12 @@ async function scrapePrice(url) {
     executablePath: "/usr/bin/chromium",
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
+  const ua =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36";
 
   try {
     const page = await browser.newPage();
+    page.setUserAgent(ua);
     await page.goto(url, { timeout: 30000 });
 
     // Take a screenshot
