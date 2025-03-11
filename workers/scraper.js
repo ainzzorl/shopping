@@ -3,6 +3,7 @@ const cron = require("node-cron");
 const path = require("path");
 const fs = require("fs").promises;
 const db = require("../models/database");
+const { sendPriceAlert } = require("../services/notificationService");
 
 // Create results directory if it doesn't exist
 const RESULTS_DIR = path.join(__dirname, "../results");
@@ -80,6 +81,49 @@ async function saveDataPoint(itemId, price) {
       }
     );
   });
+}
+
+async function checkPriceDrops() {
+  try {
+    // Get all items with their latest prices that are below target price
+    const query = `
+            WITH LatestPrices AS (
+                SELECT 
+                    item_id,
+                    price,
+                    timestamp,
+                    ROW_NUMBER() OVER (PARTITION BY item_id ORDER BY timestamp DESC) as rn
+                FROM item_datapoints
+            )
+            SELECT 
+                i.*,
+                lp.price as current_price,
+                lp.timestamp as price_timestamp
+            FROM items i
+            JOIN LatestPrices lp ON i.id = lp.item_id
+            WHERE lp.rn = 1
+            AND lp.price <= i.target_price
+            AND i.enabled = 1`;
+
+    const items = await new Promise((resolve, reject) => {
+      db.all(query, [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    console.log(`Found ${items.length} items with price drops`);
+
+    for (const item of items) {
+      try {
+        await sendPriceAlert(item, item.current_price);
+      } catch (error) {
+        console.error(`Error sending price alert for item ${item.id}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error("Error checking price drops:", error);
+  }
 }
 
 async function scrapePrice(url) {
@@ -236,10 +280,14 @@ setInterval(checkPendingTasks, CHECK_INTERVAL);
 // Run the task scheduler every 5 minutes
 setInterval(scheduleNewTasks, SCHEDULE_INTERVAL);
 
-// Run both immediately on startup
+// Run the price drop checker every 30 seconds
+setInterval(checkPriceDrops, CHECK_INTERVAL);
+
+// Run all immediately on startup
 checkPendingTasks();
 scheduleNewTasks();
+checkPriceDrops();
 
 console.log(
-  "Scraper worker started. Checking for tasks every 30 seconds and scheduling new tasks every 5 minutes..."
+  "Scraper worker started. Checking for tasks and price drops every 30 seconds and scheduling new tasks every 5 minutes..."
 );

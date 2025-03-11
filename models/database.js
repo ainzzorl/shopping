@@ -56,6 +56,16 @@ db.serialize(() => {
         html_path TEXT,
         FOREIGN KEY (item_id) REFERENCES items (id)
     )`);
+
+  // Create notifications table
+  db.run(`CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id INTEGER NOT NULL,
+        price REAL NOT NULL,
+        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        type TEXT NOT NULL,
+        FOREIGN KEY (item_id) REFERENCES items (id)
+    )`);
 });
 
 module.exports = db;
