@@ -28,7 +28,9 @@ app.get('/', (req, res) => {
     const query = `
         SELECT i.*,
                d.price as current_price,
-               d.timestamp as price_timestamp
+               d.timestamp as price_timestamp,
+               s.name as store_name,
+               s.website as store_website
         FROM items i
         LEFT JOIN (
             SELECT item_id, price, timestamp
@@ -39,6 +41,7 @@ app.get('/', (req, res) => {
                 WHERE d2.item_id = d1.item_id
             )
         ) d ON i.id = d.item_id
+        LEFT JOIN stores s ON i.store_id = s.id
         ORDER BY i.name
     `;
 
@@ -52,14 +55,20 @@ app.get('/', (req, res) => {
 });
 
 app.get('/items/new', (req, res) => {
-    res.render('items/new');
+    db.all('SELECT id, name FROM stores ORDER BY name', [], (err, stores) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Database error');
+        }
+        res.render('items/new', { stores });
+    });
 });
 
 app.post('/items', (req, res) => {
-    const { url, name, target_price, image_url } = req.body;
+    const { url, name, target_price, image_url, store_id } = req.body;
     db.run(
-        'INSERT INTO items (url, name, target_price, image_url) VALUES (?, ?, ?, ?)',
-        [url, name, target_price, image_url],
+        'INSERT INTO items (url, name, target_price, image_url, store_id) VALUES (?, ?, ?, ?, ?)',
+        [url, name, target_price, image_url, store_id],
         function(err) {
             if (err) {
                 console.error(err);
@@ -118,16 +127,22 @@ app.get('/items/:id/edit', (req, res) => {
         if (!item) {
             return res.status(404).send('Item not found');
         }
-        res.render('items/edit', { item });
+        db.all('SELECT id, name FROM stores ORDER BY name', [], (err, stores) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).send('Database error');
+            }
+            res.render('items/edit', { item, stores });
+        });
     });
 });
 
 app.post('/items/:id', (req, res) => {
     const id = req.params.id;
-    const { url, name, target_price, image_url, enabled } = req.body;
+    const { url, name, target_price, image_url, enabled, store_id } = req.body;
     db.run(
-        'UPDATE items SET url = ?, name = ?, target_price = ?, image_url = ?, enabled = ? WHERE id = ?',
-        [url, name, target_price, image_url, enabled ? 1 : 0, id],
+        'UPDATE items SET url = ?, name = ?, target_price = ?, image_url = ?, enabled = ?, store_id = ? WHERE id = ?',
+        [url, name, target_price, image_url, enabled ? 1 : 0, store_id, id],
         (err) => {
             if (err) {
                 console.error(err);
@@ -146,6 +161,86 @@ app.post('/items/:id/delete', (req, res) => {
             return res.status(500).send('Error deleting item');
         }
         res.redirect('/');
+    });
+});
+
+// Routes for stores
+app.get('/stores', (req, res) => {
+    const query = `
+        SELECT s.*,
+               COUNT(i.id) as items_count
+        FROM stores s
+        LEFT JOIN items i ON s.id = i.store_id
+        GROUP BY s.id
+        ORDER BY s.name
+    `;
+
+    db.all(query, [], (err, stores) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Database error');
+        }
+        res.render('stores/index', { stores });
+    });
+});
+
+app.get('/stores/new', (req, res) => {
+    res.render('stores/new');
+});
+
+app.post('/stores', (req, res) => {
+    const { name, website } = req.body;
+    db.run(
+        'INSERT INTO stores (name, website) VALUES (?, ?)',
+        [name, website],
+        (err) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).send('Error creating store');
+            }
+            res.redirect('/stores');
+        }
+    );
+});
+
+app.get('/stores/:id/edit', (req, res) => {
+    const id = req.params.id;
+    db.get('SELECT * FROM stores WHERE id = ?', [id], (err, store) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Database error');
+        }
+        if (!store) {
+            return res.status(404).send('Store not found');
+        }
+        res.render('stores/edit', { store });
+    });
+});
+
+app.post('/stores/:id', (req, res) => {
+    const id = req.params.id;
+    const { name, website } = req.body;
+    db.run(
+        'UPDATE stores SET name = ?, website = ? WHERE id = ?',
+        [name, website, id],
+        (err) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).send('Error updating store');
+            }
+            res.redirect('/stores');
+        }
+    );
+});
+
+app.post('/stores/:id/delete', (req, res) => {
+    const id = req.params.id;
+    db.run('DELETE FROM stores WHERE id = ?', [id], (err) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).send('Error deleting store');
+        }
+        res.redirect('/stores');
     });
 });
 

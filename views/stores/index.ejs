@@ -1,0 +1,40 @@
+<%- contentFor('body') %>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Stores</h1>
+        <a href="/stores/new" class="btn btn-primary">Add New Store</a>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Website</th>
+                    <th>Items Count</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% stores.forEach(store => { %>
+                    <tr>
+                        <td><%= store.name %></td>
+                        <td><a href="<%= store.website %>" target="_blank"><%= store.website %></a></td>
+                        <td><%= store.items_count %></td>
+                        <td><%= moment(store.created_at).format('YYYY-MM-DD HH:mm') %></td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="/stores/<%= store.id %>/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                <form action="/stores/<%= store.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this store?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    </div>
+</div> 

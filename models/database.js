@@ -12,6 +12,14 @@ const db = new sqlite3.Database(path.join(__dirname, '../shopping.db'), (err) =>
 
 // Initialize database tables
 db.serialize(() => {
+    // Create stores table
+    db.run(`CREATE TABLE IF NOT EXISTS stores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        website TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
     // Create items table
     db.run(`CREATE TABLE IF NOT EXISTS items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,7 +27,9 @@ db.serialize(() => {
         name TEXT NOT NULL,
         target_price REAL NOT NULL,
         image_url TEXT,
-        enabled BOOLEAN DEFAULT 1
+        enabled BOOLEAN DEFAULT 1,
+        store_id INTEGER,
+        FOREIGN KEY (store_id) REFERENCES stores (id)
     )`);
 
     // Create item_datapoints table
