@@ -8,6 +8,11 @@ const db = require('../models/database');
 const RESULTS_DIR = path.join(__dirname, '../results');
 fs.mkdir(RESULTS_DIR, { recursive: true }).catch(console.error);
 
+// Time intervals
+const CHECK_INTERVAL = 30 * 1000; // 30 seconds
+const SCHEDULE_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const SCRAPE_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
 async function getPendingTasks() {
     return new Promise((resolve, reject) => {
         const query = `
@@ -41,8 +46,8 @@ async function updateTaskStatus(taskId, success, resultsPath = null) {
 }
 
 async function createNextTask(itemId, url) {
-    // Schedule next task for 1 hour later
-    const nextScheduledTime = new Date(Date.now() + 60 * 60 * 1000)
+    // Schedule next task for 24 hours later
+    const nextScheduledTime = new Date(Date.now() + SCRAPE_INTERVAL)
         .toISOString()
         .replace('T', ' ')
         .replace(/\.\d+Z$/, '');
@@ -150,16 +155,43 @@ async function processTask(task) {
         // Update task status
         await updateTaskStatus(task.id, true, screenshotPath);
         
-        // Create next task
-        await createNextTask(task.item_id, task.url);
-        
         console.log(`Successfully processed task ${task.id}`);
     } catch (error) {
         console.error(`Error processing task ${task.id}:`, error);
         await updateTaskStatus(task.id, false);
-        // Still create next task even if this one failed
-        await createNextTask(task.item_id, task.url);
     }
+}
+
+async function scheduleNewTasks() {
+    return new Promise((resolve, reject) => {
+        // Find active items that don't have any pending tasks
+        const query = `
+            SELECT i.id, i.url 
+            FROM items i 
+            LEFT JOIN scraping_tasks st ON i.id = st.item_id 
+            AND st.execution_time IS NULL 
+            WHERE i.enabled = 1 
+            AND st.id IS NULL`;
+        
+        db.all(query, [], async (err, items) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            
+            console.log(`Found ${items.length} items needing new tasks`);
+            
+            for (const item of items) {
+                try {
+                    await createNextTask(item.id, item.url);
+                    console.log(`Scheduled new task for item ${item.id}`);
+                } catch (error) {
+                    console.error(`Error scheduling task for item ${item.id}:`, error);
+                }
+            }
+            resolve();
+        });
+    });
 }
 
 async function checkPendingTasks() {
@@ -176,10 +208,13 @@ async function checkPendingTasks() {
 }
 
 // Run the task checker every 30 seconds
-const INTERVAL = 30 * 1000;
-setInterval(checkPendingTasks, INTERVAL);
+setInterval(checkPendingTasks, CHECK_INTERVAL);
 
-// Also run it immediately on startup
+// Run the task scheduler every 5 minutes
+setInterval(scheduleNewTasks, SCHEDULE_INTERVAL);
+
+// Run both immediately on startup
 checkPendingTasks();
+scheduleNewTasks();
 
-console.log('Scraper worker started. Checking for tasks every 30 seconds...'); 
+console.log('Scraper worker started. Checking for tasks every 30 seconds and scheduling new tasks every 5 minutes...'); 
