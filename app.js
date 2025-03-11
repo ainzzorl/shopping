@@ -25,7 +25,24 @@ app.locals.moment = moment;
 
 // Routes for items
 app.get('/', (req, res) => {
-    db.all('SELECT * FROM items ORDER BY name', [], (err, items) => {
+    const query = `
+        SELECT i.*,
+               d.price as current_price,
+               d.timestamp as price_timestamp
+        FROM items i
+        LEFT JOIN (
+            SELECT item_id, price, timestamp
+            FROM item_datapoints d1
+            WHERE timestamp = (
+                SELECT MAX(timestamp)
+                FROM item_datapoints d2
+                WHERE d2.item_id = d1.item_id
+            )
+        ) d ON i.id = d.item_id
+        ORDER BY i.name
+    `;
+
+    db.all(query, [], (err, items) => {
         if (err) {
             console.error(err);
             return res.status(500).send('Database error');

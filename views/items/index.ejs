@@ -9,6 +9,7 @@
                     <tr>
                         <th>Name</th>
                         <th>Target Price</th>
+                        <th>Current Price</th>
                         <th>Current Status</th>
                         <th>Actions</th>
                     </tr>
@@ -22,6 +23,16 @@
                                 </a>
                             </td>
                             <td>$<%= item.target_price.toFixed(2) %></td>
+                            <td>
+                                <% if (item.current_price) { %>
+                                    $<%= item.current_price.toFixed(2) %>
+                                    <small class="text-muted">
+                                        (<%= moment(item.price_timestamp).fromNow() %>)
+                                    </small>
+                                <% } else { %>
+                                    <span class="text-muted">No data yet</span>
+                                <% } %>
+                            </td>
                             <td>
                                 <span class="badge <%= item.enabled ? 'bg-success' : 'bg-secondary' %>">
                                     <%= item.enabled ? 'Enabled' : 'Disabled' %>
