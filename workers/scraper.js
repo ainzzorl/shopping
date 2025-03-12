@@ -68,8 +68,9 @@ async function updateTaskStatus(
 }
 
 async function createNextTask(itemId, url) {
-  // Schedule next task for 24 hours later
-  const nextScheduledTime = new Date(Date.now() + SCRAPE_INTERVAL)
+  // Schedule next task for 24 hours later with random jitter of ±1 hour
+  const jitter = (Math.random() - 0.5) * (1 * 60 * 60 * 1000); // ±1 hour in milliseconds
+  const nextScheduledTime = new Date(Date.now() + SCRAPE_INTERVAL + jitter)
     .toISOString()
     .replace("T", " ")
     .replace(/\.\d+Z$/, "");
