@@ -2,3 +2,4 @@ node_modules/
 results/
 shopping.db
 config/telegram.js
+telegram_session/

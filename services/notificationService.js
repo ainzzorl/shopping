@@ -3,27 +3,32 @@ const { StoreSession } = require("telegram/sessions");
 const db = require("../models/database");
 const telegramConfig = require("../config/telegram");
 
-// Initialize Telegram client
-// You'll need to set these environment variables:
-// TELEGRAM_API_ID: Your API ID from https://my.telegram.org
-// TELEGRAM_API_HASH: Your API hash from https://my.telegram.org
-// TELEGRAM_STRING_SESSION: The session string from initial login
-const client = new TelegramClient(
-  new StoreSession("telegram_session"),
-  telegramConfig.apiId,
-  telegramConfig.apiHash,
-  { connectionRetries: 5 }
-);
+let client = null;
 
-// Start the client
-(async () => {
-  await client.connect();
-  if (!(await client.isUserAuthorized())) {
-    console.error(
-      "Telegram client not authorized. Please run the setup script first."
-    );
-  }
-})();
+// Only initialize Telegram client if not in test environment
+if (process.env.NODE_ENV !== "test") {
+  // Initialize Telegram client
+  // You'll need to set these environment variables:
+  // TELEGRAM_API_ID: Your API ID from https://my.telegram.org
+  // TELEGRAM_API_HASH: Your API hash from https://my.telegram.org
+  // TELEGRAM_STRING_SESSION: The session string from initial login
+  client = new TelegramClient(
+    new StoreSession("telegram_session"),
+    telegramConfig.apiId,
+    telegramConfig.apiHash,
+    { connectionRetries: 5 }
+  );
+
+  // Start the client
+  (async () => {
+    await client.connect();
+    if (!(await client.isUserAuthorized())) {
+      console.error(
+        "Telegram client not authorized. Please run the setup script first."
+      );
+    }
+  })();
+}
 
 async function sendPriceAlert(item, currentPrice) {
   try {
@@ -34,10 +39,15 @@ async function sendPriceAlert(item, currentPrice) {
       `Target price: ${item.target_price}\n` +
       `Check it out here: ${item.url}`;
 
-    // Send the message to yourself ("me" is a special identifier in Telegram for self-messages)
-    await client.sendMessage(await client.getEntity(telegramConfig.channelId), {
-      message,
-    });
+    // Only send message if client is initialized (not in test environment)
+    if (client) {
+      await client.sendMessage(
+        await client.getEntity(telegramConfig.channelId),
+        {
+          message,
+        }
+      );
+    }
 
     // Store the notification in the database
     await new Promise((resolve, reject) => {

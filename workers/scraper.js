@@ -152,6 +152,40 @@ async function checkPriceDrops() {
   }
 }
 
+async function extractPrice(page) {
+  // First try the og:price:amount meta tag
+  const priceMetaTag = await page.$('meta[property="og:price:amount"]');
+  if (priceMetaTag) {
+    const price = parseFloat(
+      await priceMetaTag.evaluate((el) => el.getAttribute("content"))
+    );
+    if (!isNaN(price)) {
+      return price;
+    }
+  }
+
+  // Fallback to common price selectors if meta tag is not found
+  const selectors = [
+    "[data-price]",
+    '[class*="price"]',
+    '[id*="price"]',
+    ".price",
+    "#price",
+  ];
+
+  for (const selector of selectors) {
+    const element = await page.$(selector);
+    if (element) {
+      const text = await element.evaluate((el) => el.textContent);
+      const match = text.match(/[\d,.]+/);
+      if (match) {
+        return parseFloat(match[0].replace(/,/g, ""));
+      }
+    }
+  }
+  return null;
+}
+
 async function scrapePrice(url) {
   const browser = await puppeteer.launch({
     headless: "new",
@@ -173,41 +207,8 @@ async function scrapePrice(url) {
     // Get the page HTML
     const html = await page.content();
 
-    // Extract price using og:price:amount meta tag
-    const price = await page.evaluate(() => {
-      // First try the og:price:amount meta tag
-      const priceMetaTag = document.querySelector(
-        'meta[property="og:price:amount"]'
-      );
-      if (priceMetaTag) {
-        const price = parseFloat(priceMetaTag.getAttribute("content"));
-        if (!isNaN(price)) {
-          return price;
-        }
-      }
-
-      // Fallback to common price selectors if meta tag is not found
-      const selectors = [
-        "[data-price]",
-        '[class*="price"]',
-        '[id*="price"]',
-        //'span:contains("$")',
-        ".price",
-        "#price",
-      ];
-
-      for (const selector of selectors) {
-        const element = document.querySelector(selector);
-        if (element) {
-          const text = element.textContent;
-          const match = text.match(/[\d,.]+/);
-          if (match) {
-            return parseFloat(match[0].replace(/,/g, ""));
-          }
-        }
-      }
-      return null;
-    });
+    // Extract price using the new extractPrice function
+    const price = await extractPrice(page);
 
     await browser.close();
     return { price, screenshot, html };
@@ -300,20 +301,38 @@ async function checkPendingTasks() {
   }
 }
 
-// Run the task checker every 30 seconds
-setInterval(checkPendingTasks, CHECK_INTERVAL);
+// Only start recurring tasks if not in test environment
+if (process.env.NODE_ENV !== "test") {
+  // Run the task checker every 30 seconds
+  setInterval(checkPendingTasks, CHECK_INTERVAL);
 
-// Run the task scheduler every 5 minutes
-setInterval(scheduleNewTasks, SCHEDULE_INTERVAL);
+  // Run the task scheduler every 5 minutes
+  setInterval(scheduleNewTasks, SCHEDULE_INTERVAL);
 
-// Run the price drop checker every 30 seconds
-setInterval(checkPriceDrops, CHECK_INTERVAL);
+  // Run the price drop checker every 30 seconds
+  setInterval(checkPriceDrops, CHECK_INTERVAL);
 
-// Run all immediately on startup
-checkPendingTasks();
-scheduleNewTasks();
-checkPriceDrops();
+  // Run all immediately on startup
+  checkPendingTasks();
+  scheduleNewTasks();
+  checkPriceDrops();
 
-console.log(
-  "Scraper worker started. Checking for tasks and price drops every 30 seconds and scheduling new tasks every 5 minutes..."
-);
+  console.log(
+    "Scraper worker started. Checking for tasks and price drops every 30 seconds and scheduling new tasks every 5 minutes..."
+  );
+}
+
+// Export functions for testing
+module.exports = {
+  extractPrice,
+  scrapePrice,
+  checkPriceDrops,
+  checkPendingTasks,
+  scheduleNewTasks,
+  processTask,
+  createNextTask,
+  updateTaskStatus,
+  getPendingTasks,
+  saveDataPoint,
+  checkDuplicateNotification,
+};
