@@ -5,6 +5,8 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
+    "worker": "node workers/scraper.js",
+    "all": "concurrently \"npm run start\" \"npm run worker\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -26,5 +28,8 @@
     "puppeteer": "^24.4.0",
     "sqlite3": "^5.1.6",
     "telegram": "^2.26.22"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   }
 }
