@@ -19,6 +19,7 @@ async function checkDuplicateNotification(itemId, price) {
     db.get(
       `SELECT * FROM notifications 
       WHERE item_id = ? AND price = ? AND type = 'price_drop'
+      AND sent_at > datetime('now', '-7 days')
       ORDER BY sent_at DESC LIMIT 1`,
       [itemId, price],
       (err, row) => {
