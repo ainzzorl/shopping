@@ -25,6 +25,13 @@ app.locals.moment = moment;
 
 // Routes for items
 app.get("/", (req, res) => {
+  const sortColumn = req.query.sort || "name"; // Default sort by name
+  const sortOrder = req.query.order === "desc" ? "DESC" : "ASC";
+
+  // Validate sort column to prevent SQL injection
+  const validColumns = ["name", "store_name", "target_price", "current_price"];
+  const safeColumn = validColumns.includes(sortColumn) ? sortColumn : "name";
+
   const query = `
         SELECT i.*,
                d.price as current_price,
@@ -42,7 +49,13 @@ app.get("/", (req, res) => {
             )
         ) d ON i.id = d.item_id
         LEFT JOIN stores s ON i.store_id = s.id
-        ORDER BY i.name
+        ORDER BY ${
+          safeColumn === "current_price"
+            ? "d.price"
+            : safeColumn === "store_name"
+            ? "s.name"
+            : "i." + safeColumn
+        } ${sortOrder}
     `;
 
   db.all(query, [], (err, items) => {
@@ -50,7 +63,11 @@ app.get("/", (req, res) => {
       console.error(err);
       return res.status(500).send("Database error");
     }
-    res.render("items/index", { items });
+    res.render("items/index", {
+      items,
+      currentSort: sortColumn,
+      currentOrder: sortOrder.toLowerCase(),
+    });
   });
 });
 
