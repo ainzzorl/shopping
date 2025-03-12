@@ -160,7 +160,7 @@ async function scrapePrice(url) {
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
   const ua =
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36";
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
 
   try {
     const page = await browser.newPage();
@@ -191,7 +191,7 @@ async function scrapePrice(url) {
         "[data-price]",
         '[class*="price"]',
         '[id*="price"]',
-        'span:contains("$")',
+        //'span:contains("$")',
         ".price",
         "#price",
       ];
@@ -224,10 +224,6 @@ async function processTask(task) {
     // Perform the scraping
     const { price, screenshot, html } = await scrapePrice(task.url);
 
-    if (!price) {
-      throw new Error("Could not extract price");
-    }
-
     // Save the screenshot
     const screenshotPath = path.join(
       RESULTS_DIR,
@@ -241,6 +237,10 @@ async function processTask(task) {
       `task_${task.id}_${Date.now()}.html`
     );
     await fs.writeFile(htmlPath, html);
+
+    if (!price) {
+      throw new Error("Could not extract price");
+    }
 
     // Save the price datapoint
     await saveDataPoint(task.item_id, price);
