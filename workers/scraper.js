@@ -14,6 +14,21 @@ const CHECK_INTERVAL = 30 * 1000; // 30 seconds
 const SCHEDULE_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const SCRAPE_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
+async function checkDuplicateNotification(itemId, price) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT * FROM notifications 
+      WHERE item_id = ? AND price = ? AND type = 'price_drop'
+      ORDER BY sent_at DESC LIMIT 1`,
+      [itemId, price],
+      (err, row) => {
+        if (err) reject(err);
+        resolve(row);
+      }
+    );
+  });
+}
+
 async function getPendingTasks() {
   return new Promise((resolve, reject) => {
     const query = `
@@ -116,6 +131,15 @@ async function checkPriceDrops() {
 
     for (const item of items) {
       try {
+        // Check for duplicate notification before sending alert
+        const existingNotification = await checkDuplicateNotification(
+          item.id,
+          item.current_price
+        );
+        if (existingNotification) {
+          // If the notification already exists, don't send another one
+          continue;
+        }
         await sendPriceAlert(item, item.current_price);
       } catch (error) {
         console.error(`Error sending price alert for item ${item.id}:`, error);

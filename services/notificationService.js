@@ -27,28 +27,6 @@ const client = new TelegramClient(
 
 async function sendPriceAlert(item, currentPrice) {
   try {
-    // Check if we've already sent a notification for this price
-    const existingNotification = await new Promise((resolve, reject) => {
-      db.get(
-        `SELECT * FROM notifications 
-                WHERE item_id = ? AND price = ? AND type = 'price_drop'
-                ORDER BY sent_at DESC LIMIT 1`,
-        [item.id, currentPrice],
-        (err, row) => {
-          if (err) reject(err);
-          resolve(row);
-        }
-      );
-    });
-
-    // If we've already sent a notification for this price, don't send another one
-    if (existingNotification) {
-      console.log(
-        `Already sent notification for item ${item.id} at price ${currentPrice}`
-      );
-      return;
-    }
-
     // Format the message
     const message =
       `🎉 Price Drop Alert! 🎉\n\n` +
