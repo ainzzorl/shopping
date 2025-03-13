@@ -154,13 +154,23 @@ async function checkPriceDrops() {
 
 async function extractPrice(page) {
   // First try the og:price:amount meta tag
-  const priceMetaTag = await page.$('meta[property="og:price:amount"]');
-  if (priceMetaTag) {
-    const price = parseFloat(
-      await priceMetaTag.evaluate((el) => el.getAttribute("content"))
-    );
-    if (!isNaN(price)) {
-      return price;
+  // Try various meta tags that could contain the price
+  const metaSelectors = [
+    'meta[property="og:price:amount"]',
+    'meta[itemprop="lowPrice"]',
+    'meta[itemprop="price"]',
+    'meta[property="product:price:amount"]',
+  ];
+
+  for (const selector of metaSelectors) {
+    const priceMetaTag = await page.$(selector);
+    if (priceMetaTag) {
+      const price = parseFloat(
+        await priceMetaTag.evaluate((el) => el.getAttribute("content"))
+      );
+      if (!isNaN(price)) {
+        return price;
+      }
     }
   }
 
