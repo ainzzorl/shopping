@@ -32,11 +32,28 @@ if (process.env.NODE_ENV !== "test") {
 
 async function sendPriceAlert(item, currentPrice) {
   try {
+    // Get store information
+    const store = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT s.name
+         FROM stores s
+         JOIN items i ON s.id = i.store_id
+         WHERE i.id = ?`,
+        [item.id],
+        (err, row) => {
+          if (err) reject(err);
+          resolve(row);
+        }
+      );
+    });
+
     // Format the message
     const message =
       `🎉 Price Drop Alert! 🎉\n\n` +
-      `${item.name} is now ${currentPrice}!\n` +
-      `Target price: ${item.target_price}\n` +
+      `${item.name}\n` +
+      `Store: ${store ? store.name : "Unknown Store"}\n` +
+      `Current Price: $${currentPrice.toFixed(2)}\n` +
+      `Target Price: $${item.target_price.toFixed(2)}\n` +
       `Check it out here: ${item.url}`;
 
     // Only send message if client is initialized (not in test environment)
