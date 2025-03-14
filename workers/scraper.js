@@ -71,8 +71,9 @@ async function createNextTask(itemId, url) {
   // Schedule next task for 24 hours later with random jitter of ±1 hour
   const jitter = (Math.random() - 0.5) * (1 * 60 * 60 * 1000); // ±1 hour in milliseconds
   const nextScheduledTime = new Date(Date.now() + SCRAPE_INTERVAL + jitter)
-    .toLocaleString("en-US", { timeZone: "local" })
-    .replace(",", "");
+    .toISOString()
+    .slice(0, 19)
+    .replace("T", " ");
 
   return new Promise((resolve, reject) => {
     db.run(
