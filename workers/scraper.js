@@ -19,7 +19,7 @@ async function checkDuplicateNotification(itemId, price) {
     db.get(
       `SELECT * FROM notifications 
       WHERE item_id = ? AND price = ? AND type = 'price_drop'
-      AND sent_at > datetime('now', '-7 days')
+      AND sent_at > datetime('now', 'localtime', '-7 days')
       ORDER BY sent_at DESC LIMIT 1`,
       [itemId, price],
       (err, row) => {
@@ -38,7 +38,7 @@ async function getPendingTasks() {
             JOIN items i ON st.item_id = i.id
             WHERE st.execution_time IS NULL 
             AND i.enabled = 1
-            AND strftime('%s', st.scheduled_time) <= strftime('%s', 'now')
+            AND strftime('%s', st.scheduled_time) <= strftime('%s', datetime('now', 'localtime'))
             ORDER BY st.scheduled_time ASC
             LIMIT 5`;
 
@@ -57,7 +57,7 @@ async function updateTaskStatus(
 ) {
   return new Promise((resolve, reject) => {
     db.run(
-      "UPDATE scraping_tasks SET execution_time = CURRENT_TIMESTAMP, success = ?, screenshot_path = ?, html_path = ? WHERE id = ?",
+      "UPDATE scraping_tasks SET execution_time = datetime('now', 'localtime'), success = ?, screenshot_path = ?, html_path = ? WHERE id = ?",
       [success ? 1 : 0, screenshotPath, htmlPath, taskId],
       (err) => {
         if (err) reject(err);
@@ -71,9 +71,8 @@ async function createNextTask(itemId, url) {
   // Schedule next task for 24 hours later with random jitter of ±1 hour
   const jitter = (Math.random() - 0.5) * (1 * 60 * 60 * 1000); // ±1 hour in milliseconds
   const nextScheduledTime = new Date(Date.now() + SCRAPE_INTERVAL + jitter)
-    .toISOString()
-    .replace("T", " ")
-    .replace(/\.\d+Z$/, "");
+    .toLocaleString("en-US", { timeZone: "local" })
+    .replace(",", "");
 
   return new Promise((resolve, reject) => {
     db.run(

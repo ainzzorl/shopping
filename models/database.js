@@ -20,7 +20,7 @@ db.serialize(() => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         website TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        created_at DATETIME DEFAULT (datetime('now', 'localtime'))
     )`);
 
   // Create items table
@@ -39,7 +39,7 @@ db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS item_datapoints (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         item_id INTEGER NOT NULL,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
         price REAL NOT NULL,
         FOREIGN KEY (item_id) REFERENCES items (id)
     )`);
@@ -62,7 +62,7 @@ db.serialize(() => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         item_id INTEGER NOT NULL,
         price REAL NOT NULL,
-        sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sent_at DATETIME DEFAULT (datetime('now', 'localtime')),
         type TEXT NOT NULL,
         FOREIGN KEY (item_id) REFERENCES items (id)
     )`);
