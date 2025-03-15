@@ -1,98 +1,111 @@
 <%- contentFor('body') %>
-<div class="row">
-    <div class="col">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h1>Items</h1>
-            <div>
-                <a href="/stores" class="btn btn-outline-primary me-2">Manage Stores</a>
-                <a href="/items/new" class="btn btn-primary">Add New Item</a>
+    <div class="row">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h1>Items</h1>
+                <div>
+                    <a href="/stores" class="btn btn-outline-primary me-2">Manage Stores</a>
+                    <a href="/items/new" class="btn btn-primary">Add New Item</a>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>
+                                <a href="/?sort=name&order=<%= currentSort === 'name' && currentOrder === 'asc' ? 'desc' : 'asc' %>"
+                                    class="text-decoration-none text-dark">
+                                    Name
+                                    <% if (currentSort==='name' ) { %>
+                                        <i class="bi bi-arrow-<%= currentOrder === 'asc' ? 'up' : 'down' %>"></i>
+                                        <% } %>
+                                </a>
+                            </th>
+                            <th>
+                                <a href="/?sort=store_name&order=<%= currentSort === 'store_name' && currentOrder === 'asc' ? 'desc' : 'asc' %>"
+                                    class="text-decoration-none text-dark">
+                                    Store
+                                    <% if (currentSort==='store_name' ) { %>
+                                        <i class="bi bi-arrow-<%= currentOrder === 'asc' ? 'up' : 'down' %>"></i>
+                                        <% } %>
+                                </a>
+                            </th>
+                            <th>
+                                <a href="/?sort=target_price&order=<%= currentSort === 'target_price' && currentOrder === 'asc' ? 'desc' : 'asc' %>"
+                                    class="text-decoration-none text-dark">
+                                    Target Price
+                                    <% if (currentSort==='target_price' ) { %>
+                                        <i class="bi bi-arrow-<%= currentOrder === 'asc' ? 'up' : 'down' %>"></i>
+                                        <% } %>
+                                </a>
+                            </th>
+                            <th>
+                                <a href="/?sort=current_price&order=<%= currentSort === 'current_price' && currentOrder === 'asc' ? 'desc' : 'asc' %>"
+                                    class="text-decoration-none text-dark">
+                                    Current Price
+                                    <% if (currentSort==='current_price' ) { %>
+                                        <i class="bi bi-arrow-<%= currentOrder === 'asc' ? 'up' : 'down' %>"></i>
+                                        <% } %>
+                                </a>
+                            </th>
+                            <th>Current Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% items.forEach(item=> { %>
+                            <tr>
+                                <td>
+                                    <a href="<%= item.url %>" target="_blank" class="text-decoration-none">
+                                        <%= item.name %>
+                                    </a>
+                                </td>
+                                <td>
+                                    <% if (item.store_name) { %>
+                                        <a href="<%= item.store_website %>" target="_blank"
+                                            class="text-decoration-none">
+                                            <%= item.store_name %>
+                                        </a>
+                                        <% } else { %>
+                                            <span class="text-muted">No store</span>
+                                            <% } %>
+                                </td>
+                                <td>$<%= item.target_price.toFixed(2) %>
+                                </td>
+                                <td>
+                                    <% if (item.current_price) { %>
+                                        $<%= item.current_price.toFixed(2) %>
+                                            <% const priceDiff=((item.current_price - item.target_price) /
+                                                item.target_price * 100).toFixed(1) %>
+                                                <small class="<%= priceDiff > 0 ? 'text-danger' : 'text-success' %>">
+                                                    (<%= priceDiff> 0 ? '+' : '' %><%= priceDiff %>%)
+                                                </small>
+                                                <br>
+                                                <small class="text-muted">
+                                                    (<%= moment(item.price_timestamp).fromNow() %>)
+                                                </small>
+                                                <% } else { %>
+                                                    <span class="text-muted">No data yet</span>
+                                                    <% } %>
+                                </td>
+                                <td>
+                                    <span class="badge <%= item.enabled ? 'bg-success' : 'bg-secondary' %>">
+                                        <%= item.enabled ? 'Enabled' : 'Disabled' %>
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="/items/<%= item.id %>" class="btn btn-sm btn-info">View</a>
+                                    <a href="/items/<%= item.id %>/edit" class="btn btn-sm btn-warning">Edit</a>
+                                    <form action="/items/<%= item.id %>/delete" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-danger"
+                                            onclick="return confirm('Are you sure?')">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <% }); %>
+                    </tbody>
+                </table>
             </div>
         </div>
-        
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>
-                            <a href="/?sort=name&order=<%= currentSort === 'name' && currentOrder === 'asc' ? 'desc' : 'asc' %>" class="text-decoration-none text-dark">
-                                Name
-                                <% if (currentSort === 'name') { %>
-                                    <i class="bi bi-arrow-<%= currentOrder === 'asc' ? 'up' : 'down' %>"></i>
-                                <% } %>
-                            </a>
-                        </th>
-                        <th>
-                            <a href="/?sort=store_name&order=<%= currentSort === 'store_name' && currentOrder === 'asc' ? 'desc' : 'asc' %>" class="text-decoration-none text-dark">
-                                Store
-                                <% if (currentSort === 'store_name') { %>
-                                    <i class="bi bi-arrow-<%= currentOrder === 'asc' ? 'up' : 'down' %>"></i>
-                                <% } %>
-                            </a>
-                        </th>
-                        <th>
-                            <a href="/?sort=target_price&order=<%= currentSort === 'target_price' && currentOrder === 'asc' ? 'desc' : 'asc' %>" class="text-decoration-none text-dark">
-                                Target Price
-                                <% if (currentSort === 'target_price') { %>
-                                    <i class="bi bi-arrow-<%= currentOrder === 'asc' ? 'up' : 'down' %>"></i>
-                                <% } %>
-                            </a>
-                        </th>
-                        <th>
-                            <a href="/?sort=current_price&order=<%= currentSort === 'current_price' && currentOrder === 'asc' ? 'desc' : 'asc' %>" class="text-decoration-none text-dark">
-                                Current Price
-                                <% if (currentSort === 'current_price') { %>
-                                    <i class="bi bi-arrow-<%= currentOrder === 'asc' ? 'up' : 'down' %>"></i>
-                                <% } %>
-                            </a>
-                        </th>
-                        <th>Current Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% items.forEach(item => { %>
-                        <tr>
-                            <td>
-                                <a href="<%= item.url %>" target="_blank" class="text-decoration-none">
-                                    <%= item.name %>
-                                </a>
-                            </td>
-                            <td>
-                                <% if (item.store_name) { %>
-                                    <a href="<%= item.store_website %>" target="_blank" class="text-decoration-none">
-                                        <%= item.store_name %>
-                                    </a>
-                                <% } else { %>
-                                    <span class="text-muted">No store</span>
-                                <% } %>
-                            </td>
-                            <td>$<%= item.target_price.toFixed(2) %></td>
-                            <td>
-                                <% if (item.current_price) { %>
-                                    $<%= item.current_price.toFixed(2) %>
-                                    <small class="text-muted">
-                                        (<%= moment(item.price_timestamp).fromNow() %>)
-                                    </small>
-                                <% } else { %>
-                                    <span class="text-muted">No data yet</span>
-                                <% } %>
-                            </td>
-                            <td>
-                                <span class="badge <%= item.enabled ? 'bg-success' : 'bg-secondary' %>">
-                                    <%= item.enabled ? 'Enabled' : 'Disabled' %>
-                                </span>
-                            </td>
-                            <td>
-                                <a href="/items/<%= item.id %>" class="btn btn-sm btn-info">View</a>
-                                <a href="/items/<%= item.id %>/edit" class="btn btn-sm btn-warning">Edit</a>
-                                <form action="/items/<%= item.id %>/delete" method="POST" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <% }); %>
-                </tbody>
-            </table>
-        </div>
     </div>
-</div> 
