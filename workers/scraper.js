@@ -176,6 +176,7 @@ async function extractPrice(page) {
 
   // Fallback to common price selectors if meta tag is not found
   const selectors = [
+    ".gl-price-item--sale", // Adidas
     "[data-price]",
     '[class*="price"]',
     '[id*="price"]',
