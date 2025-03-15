@@ -14,22 +14,6 @@ const CHECK_INTERVAL = 30 * 1000; // 30 seconds
 const SCHEDULE_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const SCRAPE_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
-async function checkDuplicateNotification(itemId, price) {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT * FROM notifications 
-      WHERE item_id = ? AND price = ? AND type = 'price_drop'
-      AND sent_at > datetime('now', 'localtime', '-7 days')
-      ORDER BY sent_at DESC LIMIT 1`,
-      [itemId, price],
-      (err, row) => {
-        if (err) reject(err);
-        resolve(row);
-      }
-    );
-  });
-}
-
 async function getPendingTasks() {
   return new Promise((resolve, reject) => {
     const query = `
@@ -103,6 +87,7 @@ async function saveDataPoint(itemId, price) {
 async function checkPriceDrops() {
   try {
     // Get all items with their latest prices that are below target price
+    // Only include items that haven't had a notification in the last 7 days
     const query = `
             WITH LatestPrices AS (
                 SELECT 
@@ -111,6 +96,11 @@ async function checkPriceDrops() {
                     timestamp,
                     ROW_NUMBER() OVER (PARTITION BY item_id ORDER BY timestamp DESC) as rn
                 FROM item_datapoints
+            ),
+            RecentNotifications AS (
+                SELECT DISTINCT item_id, price
+                FROM notifications 
+                WHERE sent_at >= datetime('now', '-7 days')
             )
             SELECT 
                 i.*,
@@ -118,9 +108,12 @@ async function checkPriceDrops() {
                 lp.timestamp as price_timestamp
             FROM items i
             JOIN LatestPrices lp ON i.id = lp.item_id
+            LEFT JOIN RecentNotifications rn ON i.id = rn.item_id 
+                AND lp.price = rn.price
             WHERE lp.rn = 1
             AND lp.price <= i.target_price
-            AND i.enabled = 1`;
+            AND i.enabled = 1
+            AND rn.item_id IS NULL`;
 
     const items = await new Promise((resolve, reject) => {
       db.all(query, [], (err, rows) => {
@@ -133,15 +126,6 @@ async function checkPriceDrops() {
 
     for (const item of items) {
       try {
-        // Check for duplicate notification before sending alert
-        const existingNotification = await checkDuplicateNotification(
-          item.id,
-          item.current_price
-        );
-        if (existingNotification) {
-          // If the notification already exists, don't send another one
-          continue;
-        }
         await sendPriceAlert(item, item.current_price);
       } catch (error) {
         console.error(`Error sending price alert for item ${item.id}:`, error);
@@ -345,5 +329,4 @@ module.exports = {
   updateTaskStatus,
   getPendingTasks,
   saveDataPoint,
-  checkDuplicateNotification,
 };
