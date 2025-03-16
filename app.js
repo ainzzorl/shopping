@@ -94,9 +94,7 @@ app.post("/items", (req, res) => {
 
       // Create initial scraping task
       const itemId = this.lastID;
-      const scheduledTime = new Date()
-        .toLocaleString("en-US", { timeZone: "local" })
-        .replace(",", "");
+      const scheduledTime = new Date().toLocaleString("sv-SE");
 
       db.run(
         "INSERT INTO scraping_tasks (item_id, url, scheduled_time) VALUES (?, ?, ?)",
