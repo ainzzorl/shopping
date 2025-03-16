@@ -54,10 +54,10 @@ async function updateTaskStatus(
 async function createNextTask(itemId, url) {
   // Schedule next task for 24 hours later with random jitter of ±1 hour
   const jitter = (Math.random() - 0.5) * (1 * 60 * 60 * 1000); // ±1 hour in milliseconds
-  const nextScheduledTime = new Date(Date.now() + SCRAPE_INTERVAL + jitter)
-    .toISOString()
-    .slice(0, 19)
-    .replace("T", " ");
+  const date = new Date(Date.now() + SCRAPE_INTERVAL + jitter);
+
+  // Format in local time using ISO format that SQLite expects (YYYY-MM-DD HH:mm:ss)
+  const nextScheduledTime = date.toLocaleString("sv-SE"); // Swedish locale gives us exactly the format we need
 
   return new Promise((resolve, reject) => {
     db.run(
