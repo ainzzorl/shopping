@@ -162,6 +162,7 @@ async function extractPrice(page) {
   const selectors = [
     ".gl-price-item--sale", // Adidas
     "[data-price]",
+    '[class*="promoPrice"]',
     '[class*="price"]',
     '[id*="price"]',
     ".price",
