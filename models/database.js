@@ -31,6 +31,7 @@ db.serialize(() => {
         target_price REAL NOT NULL,
         image_url TEXT,
         enabled BOOLEAN DEFAULT 1,
+        enable_notifications BOOLEAN DEFAULT 1,
         store_id INTEGER,
         FOREIGN KEY (store_id) REFERENCES stores (id)
     )`);

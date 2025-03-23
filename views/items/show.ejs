@@ -1,11 +1,14 @@
 <div class="row">
     <div class="col-md-8">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1><%= item.name %></h1>
+            <h1>
+                <%= item.name %>
+            </h1>
             <div>
                 <a href="/items/<%= item.id %>/edit" class="btn btn-warning">Edit</a>
                 <form action="/items/<%= item.id %>/delete" method="POST" class="d-inline">
-                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
+                    <button type="submit" class="btn btn-danger"
+                        onclick="return confirm('Are you sure?')">Delete</button>
                 </form>
             </div>
         </div>
@@ -14,12 +17,21 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-8">
-                        <p><strong>URL:</strong> <a href="<%= item.url %>" target="_blank"><%= item.url %></a></p>
-                        <p><strong>Target Price:</strong> $<%= item.target_price.toFixed(2) %></p>
+                        <p><strong>URL:</strong> <a href="<%= item.url %>" target="_blank">
+                                <%= item.url %>
+                            </a></p>
+                        <p><strong>Target Price:</strong> $<%= item.target_price.toFixed(2) %>
+                        </p>
                         <p>
                             <strong>Status:</strong>
                             <span class="badge <%= item.enabled ? 'bg-success' : 'bg-secondary' %>">
                                 <%= item.enabled ? 'Enabled' : 'Disabled' %>
+                            </span>
+                        </p>
+                        <p>
+                            <strong>Notifications:</strong>
+                            <span class="badge <%= item.enable_notifications ? 'bg-success' : 'bg-secondary' %>">
+                                <%= item.enable_notifications ? 'Enabled' : 'Disabled' %>
                             </span>
                         </p>
                     </div>
@@ -27,13 +39,13 @@
                         <div class="col-md-4">
                             <img src="<%= item.image_url %>" alt="<%= item.name %>" class="img-fluid">
                         </div>
-                    <% } %>
+                        <% } %>
                 </div>
             </div>
         </div>
 
         <h2>Price History</h2>
-        <% if (datapoints.length > 0) { %>
+        <% if (datapoints.length> 0) { %>
             <div class="table-responsive">
                 <table class="table table-striped">
                     <thead>
@@ -44,23 +56,26 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <% datapoints.forEach(datapoint => { %>
+                        <% datapoints.forEach(datapoint=> { %>
                             <tr>
-                                <td><%= moment(datapoint.timestamp).format('YYYY-MM-DD HH:mm:ss') %></td>
-                                <td>$<%= datapoint.price.toFixed(2) %></td>
                                 <td>
-                                    <% const diff = datapoint.price - item.target_price; %>
-                                    <span class="<%= diff > 0 ? 'text-danger' : 'text-success' %>">
-                                        <%= diff > 0 ? '+' : '' %>$<%= diff.toFixed(2) %>
-                                    </span>
+                                    <%= moment(datapoint.timestamp).format('YYYY-MM-DD HH:mm:ss') %>
+                                </td>
+                                <td>$<%= datapoint.price.toFixed(2) %>
+                                </td>
+                                <td>
+                                    <% const diff=datapoint.price - item.target_price; %>
+                                        <span class="<%= diff > 0 ? 'text-danger' : 'text-success' %>">
+                                            <%= diff> 0 ? '+' : '' %>$<%= diff.toFixed(2) %>
+                                        </span>
                                 </td>
                             </tr>
-                        <% }); %>
+                            <% }); %>
                     </tbody>
                 </table>
             </div>
-        <% } else { %>
-            <p class="text-muted">No price history available yet.</p>
-        <% } %>
+            <% } else { %>
+                <p class="text-muted">No price history available yet.</p>
+                <% } %>
     </div>
-</div> 
+</div>

@@ -1,55 +1,67 @@
 <%- contentFor('body') %>
-<div class="row">
-    <div class="col-md-6 offset-md-3">
-        <h1>Edit Item</h1>
-        
-        <form action="/items/<%= item.id %>" method="POST">
-            <div class="mb-3">
-                <label for="name" class="form-label">Name</label>
-                <input type="text" class="form-control" id="name" name="name" value="<%= item.name %>" required>
-            </div>
-            
-            <div class="mb-3">
-                <label for="store_id" class="form-label">Store</label>
-                <select class="form-select" id="store_id" name="store_id" required>
-                    <option value="">Select a store</option>
-                    <% stores.forEach(store => { %>
-                        <option value="<%= store.id %>" <%= store.id === item.store_id ? 'selected' : '' %>>
-                            <%= store.name %>
-                        </option>
-                    <% }); %>
-                </select>
-            </div>
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <h1>Edit Item</h1>
 
-            <div class="mb-3">
-                <label for="url" class="form-label">URL</label>
-                <input type="url" class="form-control" id="url" name="url" value="<%= item.url %>" required>
-            </div>
-            
-            <div class="mb-3">
-                <label for="target_price" class="form-label">Target Price</label>
-                <div class="input-group">
-                    <span class="input-group-text">$</span>
-                    <input type="number" class="form-control" id="target_price" name="target_price" step="0.01" min="0" value="<%= item.target_price %>" required>
+            <form action="/items/<%= item.id %>" method="POST">
+                <div class="mb-3">
+                    <label for="name" class="form-label">Name</label>
+                    <input type="text" class="form-control" id="name" name="name" value="<%= item.name %>" required>
                 </div>
-            </div>
-            
-            <div class="mb-3">
-                <label for="image_url" class="form-label">Image URL (optional)</label>
-                <input type="url" class="form-control" id="image_url" name="image_url" value="<%= item.image_url %>">
-            </div>
 
-            <div class="mb-3">
-                <div class="form-check">
-                    <input type="checkbox" class="form-control-input" id="enabled" name="enabled" <%= item.enabled ? 'checked' : '' %>>
-                    <label class="form-check-label" for="enabled">Enabled</label>
+                <div class="mb-3">
+                    <label for="store_id" class="form-label">Store</label>
+                    <select class="form-select" id="store_id" name="store_id" required>
+                        <option value="">Select a store</option>
+                        <% stores.forEach(store=> { %>
+                            <option value="<%= store.id %>" <%=store.id===item.store_id ? 'selected' : '' %>>
+                                <%= store.name %>
+                            </option>
+                            <% }); %>
+                    </select>
                 </div>
-            </div>
-            
-            <div class="mb-3">
-                <a href="/items/<%= item.id %>" class="btn btn-secondary">Cancel</a>
-                <button type="submit" class="btn btn-primary">Update Item</button>
-            </div>
-        </form>
+
+                <div class="mb-3">
+                    <label for="url" class="form-label">URL</label>
+                    <input type="url" class="form-control" id="url" name="url" value="<%= item.url %>" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="target_price" class="form-label">Target Price</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control" id="target_price" name="target_price" step="0.01"
+                            min="0" value="<%= item.target_price %>" required>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="image_url" class="form-label">Image URL (optional)</label>
+                    <input type="url" class="form-control" id="image_url" name="image_url"
+                        value="<%= item.image_url %>">
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-control-input" id="enabled" name="enabled" <%=item.enabled
+                            ? 'checked' : '' %>>
+                        <label class="form-check-label" for="enabled">Enabled</label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-control-input" id="enable_notifications"
+                            name="enable_notifications" <%=item.enable_notifications ? 'checked' : '' %>>
+                        <label class="form-check-label" for="enable_notifications">Enable Price Drop
+                            Notifications</label>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <a href="/items/<%= item.id %>" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Update Item</button>
+                </div>
+            </form>
+        </div>
     </div>
-</div> 

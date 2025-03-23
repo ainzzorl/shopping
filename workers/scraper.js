@@ -113,6 +113,7 @@ async function checkPriceDrops() {
             WHERE lp.rn = 1
             AND lp.price <= i.target_price
             AND i.enabled = 1
+            AND i.enable_notifications = 1
             AND rn.item_id IS NULL`;
 
     const items = await new Promise((resolve, reject) => {

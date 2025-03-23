@@ -82,10 +82,18 @@ app.get("/items/new", (req, res) => {
 });
 
 app.post("/items", (req, res) => {
-  const { url, name, target_price, image_url, store_id } = req.body;
+  const { url, name, target_price, image_url, store_id, enable_notifications } =
+    req.body;
   db.run(
-    "INSERT INTO items (url, name, target_price, image_url, store_id) VALUES (?, ?, ?, ?, ?)",
-    [url, name, target_price, image_url, store_id],
+    "INSERT INTO items (url, name, target_price, image_url, store_id, enable_notifications) VALUES (?, ?, ?, ?, ?, ?)",
+    [
+      url,
+      name,
+      target_price,
+      image_url,
+      store_id,
+      enable_notifications ? 1 : 0,
+    ],
     function (err) {
       if (err) {
         console.error(err);
@@ -157,10 +165,27 @@ app.get("/items/:id/edit", (req, res) => {
 
 app.post("/items/:id", (req, res) => {
   const id = req.params.id;
-  const { url, name, target_price, image_url, enabled, store_id } = req.body;
+  const {
+    url,
+    name,
+    target_price,
+    image_url,
+    enabled,
+    enable_notifications,
+    store_id,
+  } = req.body;
   db.run(
-    "UPDATE items SET url = ?, name = ?, target_price = ?, image_url = ?, enabled = ?, store_id = ? WHERE id = ?",
-    [url, name, target_price, image_url, enabled ? 1 : 0, store_id, id],
+    "UPDATE items SET url = ?, name = ?, target_price = ?, image_url = ?, enabled = ?, enable_notifications = ?, store_id = ? WHERE id = ?",
+    [
+      url,
+      name,
+      target_price,
+      image_url,
+      enabled ? 1 : 0,
+      enable_notifications ? 1 : 0,
+      store_id,
+      id,
+    ],
     (err) => {
       if (err) {
         console.error(err);
