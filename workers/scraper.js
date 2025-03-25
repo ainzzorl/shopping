@@ -151,7 +151,9 @@ async function extractPrice(page) {
     const priceMetaTag = await page.$(selector);
     if (priceMetaTag) {
       const price = parseFloat(
-        await priceMetaTag.evaluate((el) => el.getAttribute("content"))
+        await priceMetaTag.evaluate((el) =>
+          el.getAttribute("content").replace(/,/g, "")
+        )
       );
       if (!isNaN(price)) {
         return price;

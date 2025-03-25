@@ -48,6 +48,22 @@ describe("Price Extraction Tests", () => {
     expect(price).toBe(99.99);
   });
 
+  test("should ignore commas in og:price:amount meta tag", async () => {
+    await page.setContent(`
+      <html>
+        <head>
+          <meta property="og:price:amount" content="99,999.99">
+        </head>
+        <body>
+          <div class="price">$129.99</div>
+        </body>
+      </html>
+    `);
+
+    const price = await extractPrice(page);
+    expect(price).toBe(99999.99);
+  });
+
   test("should extract price from data-price attribute", async () => {
     await page.setContent(`
       <html>
