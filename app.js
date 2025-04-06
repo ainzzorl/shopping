@@ -25,7 +25,7 @@ app.locals.moment = moment;
 
 // Routes for items
 app.get("/", (req, res) => {
-  const sortColumn = req.query.sort || "name"; // Default sort by name
+  const sortColumn = req.query.sort || "store_name"; // Default sort by store name
   const sortOrder = req.query.order === "desc" ? "DESC" : "ASC";
 
   // Validate sort column to prevent SQL injection
@@ -55,7 +55,7 @@ app.get("/", (req, res) => {
             : safeColumn === "store_name"
             ? "s.name"
             : "i." + safeColumn
-        } ${sortOrder}
+        } ${sortOrder}${safeColumn === "store_name" ? ", i.name ASC" : ""}
     `;
 
   db.all(query, [], (err, items) => {
