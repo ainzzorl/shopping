@@ -168,6 +168,7 @@ async function extractPrice(page) {
   const selectors = [
     ".gl-price-item--sale", // Adidas
     ".product-price__highlight", // Banana Republic
+    "formatted-price-detail", // Massimo Dutti
     "[data-price]",
     '[class*="promoPrice"]',
     '[class*="price"]',
@@ -191,10 +192,18 @@ async function extractPrice(page) {
 
 async function scrapePrice(url) {
   const browser = await puppeteer.launch({
-    headless: "new",
+    headless: "false",
     product: "chrome",
     executablePath: "/usr/bin/chromium",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--window-size=1920,1080",
+    ],
+    defaultViewport: {
+      width: 1920,
+      height: 1080,
+    },
   });
   const ua =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
