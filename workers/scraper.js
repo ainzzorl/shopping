@@ -169,6 +169,7 @@ async function extractPrice(page) {
     ".gl-price-item--sale", // Adidas
     ".product-price__highlight", // Banana Republic
     "formatted-price-detail", // Massimo Dutti
+    '[data-tau-price="new"]', // John Varvatos
     "[data-price]",
     '[class*="promoPrice"]',
     '[class*="price"]',
