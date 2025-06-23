@@ -170,6 +170,7 @@ async function extractPrice(page) {
     ".product-price__highlight", // Banana Republic
     "formatted-price-detail", // Massimo Dutti
     '[data-tau-price="new"]', // John Varvatos
+    '[data-selector="price-only"]', // Etsy
     "[data-price]",
     '[class*="promoPrice"]',
     '[class*="price"]',
