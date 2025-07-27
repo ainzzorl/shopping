@@ -1,9 +1,13 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const cron = require("node-cron");
 const path = require("path");
 const fs = require("fs").promises;
 const db = require("../models/database");
 const { sendPriceAlert } = require("../services/notificationService");
+
+// Add stealth plugin to puppeteer
+puppeteer.use(StealthPlugin());
 
 // Create results directory if it doesn't exist
 const RESULTS_DIR = path.join(__dirname, "../results");
@@ -202,20 +206,56 @@ async function scrapePrice(url) {
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
+      "--disable-blink-features=AutomationControlled",
+      "--disable-web-security",
+      "--disable-features=VizDisplayCompositor",
       "--window-size=1920,1080",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-default-apps",
+      "--disable-extensions",
+      "--disable-plugins",
+      // "--disable-images", // Disable images for faster loading
     ],
     defaultViewport: {
       width: 1920,
       height: 1080,
     },
+    ignoreHTTPSErrors: true,
   });
-  const ua =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
+
+  // Use a more realistic user agent
+  const ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
   try {
     const page = await browser.newPage();
-    page.setUserAgent(ua);
-    await page.goto(url, { timeout: 30000 });
+
+    // Set a more realistic user agent
+    await page.setUserAgent(ua);
+
+    // Set extra headers to appear more like a real browser
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Upgrade-Insecure-Requests': '1',
+    });
+
+    // Set viewport to a common resolution
+    await page.setViewport({ width: 1920, height: 1080 });
+
+    await page.goto(url, {
+      timeout: 30000,
+      waitUntil: 'networkidle2' // Wait until network is idle
+    });
 
     // Take a screenshot
     const screenshot = await page.screenshot();
