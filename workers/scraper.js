@@ -196,7 +196,9 @@ async function scrapePrice(url) {
   const browser = await puppeteer.launch({
     headless: "false",
     product: "chrome",
-    executablePath: "/usr/bin/chromium",
+    executablePath: process.platform === "darwin"
+      ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+      : "/usr/bin/chromium",
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -315,8 +317,8 @@ async function checkPendingTasks() {
   }
 }
 
-// Only start recurring tasks if not in test environment
-if (process.env.NODE_ENV !== "test") {
+// Only start recurring tasks if this is the main module and not in test environment
+if (require.main === module && process.env.NODE_ENV !== "test") {
   // Run the task checker every 30 seconds
   setInterval(checkPendingTasks, CHECK_INTERVAL);
 
