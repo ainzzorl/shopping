@@ -31,21 +31,28 @@ if (process.env.NODE_ENV !== "test") {
 }
 
 async function sendPriceAlert(item, currentPrice) {
+  console.log("Sending price alert for item", item.id);
   try {
     // Get store information
-    const store = await new Promise((resolve, reject) => {
-      db.get(
-        `SELECT s.name
-         FROM stores s
-         JOIN items i ON s.id = i.store_id
-         WHERE i.id = ?`,
-        [item.id],
-        (err, row) => {
-          if (err) reject(err);
-          resolve(row);
-        }
-      );
-    });
+    const store = await Promise.race([
+      new Promise((resolve, reject) => {
+        db.get(
+          `SELECT s.name
+           FROM stores s
+           JOIN items i ON s.id = i.store_id
+           WHERE i.id = ?`,
+          [item.id],
+          (err, row) => {
+            if (err) reject(err);
+            resolve(row);
+          }
+        );
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Database query timed out")), 5000)
+      ),
+    ]);
+    console.log("Store", store);
 
     // Format the message
     const message =
@@ -58,25 +65,36 @@ async function sendPriceAlert(item, currentPrice) {
 
     // Only send message if client is initialized (not in test environment)
     if (client) {
-      await client.sendMessage(
-        await client.getEntity(telegramConfig.channelId),
-        {
+      console.log("Sending message to Telegram");
+      await Promise.race([
+        client.sendMessage(await client.getEntity(telegramConfig.channelId), {
           message,
-        }
-      );
+        }),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Telegram message send timed out")),
+            10000
+          )
+        ),
+      ]);
     }
 
     // Store the notification in the database
-    await new Promise((resolve, reject) => {
-      db.run(
-        `INSERT INTO notifications (item_id, price, type) VALUES (?, ?, ?)`,
-        [item.id, currentPrice, "price_drop"],
-        (err) => {
-          if (err) reject(err);
-          resolve();
-        }
-      );
-    });
+    await Promise.race([
+      new Promise((resolve, reject) => {
+        db.run(
+          `INSERT INTO notifications (item_id, price, type) VALUES (?, ?, ?)`,
+          [item.id, currentPrice, "price_drop"],
+          (err) => {
+            if (err) reject(err);
+            resolve();
+          }
+        );
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Database insert timed out")), 5000)
+      ),
+    ]);
 
     console.log(`Sent price drop notification for item ${item.id}`);
   } catch (error) {

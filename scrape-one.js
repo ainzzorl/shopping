@@ -3,6 +3,43 @@ const path = require("path");
 const fs = require("fs").promises;
 const puppeteer = require("puppeteer");
 
+async function scrapeUrl(url) {
+  const browser = await puppeteer.launch({
+    headless: "new",
+    product: "chrome",
+    executablePath: "/usr/bin/chromium-browser",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+  const ua =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
+
+  try {
+    const page = await browser.newPage();
+    page.setUserAgent(ua);
+
+    console.log(`Navigating to: ${url}`);
+    await page.goto(url, {
+      waitUntil: "networkidle2",
+      timeout: 30000,
+    });
+
+    // Take a screenshot
+    const screenshot = await page.screenshot({ fullPage: true });
+
+    // Get the page HTML
+    const pageHtml = await page.content();
+
+    // Extract price using the existing extractPrice function
+    const price = await extractPrice(page);
+
+    await browser.close();
+    return { price, screenshot, html: pageHtml };
+  } catch (error) {
+    await browser.close();
+    throw error;
+  }
+}
+
 async function scrapeLocalHtml(htmlPath) {
   const browser = await puppeteer.launch({
     headless: "new",
@@ -13,7 +50,6 @@ async function scrapeLocalHtml(htmlPath) {
 
   try {
     const page = await browser.newPage();
-
     page.setUserAgent(ua);
 
     // Read and load the HTML file
@@ -45,7 +81,7 @@ async function scrapeOnePage(input) {
     let isUrl = false;
 
     // Check if input is a URL
-    if (input.startsWith('http://') || input.startsWith('https://')) {
+    if (input.startsWith("http://") || input.startsWith("https://")) {
       isUrl = true;
       console.log("Detected URL, using scrapePrice function...");
       result = await scrapePrice(input);
@@ -68,8 +104,8 @@ async function scrapeOnePage(input) {
 
     // Generate filename based on input type
     const timestamp = Date.now();
-    const inputName = isUrl 
-      ? new URL(input).hostname.replace(/[^a-zA-Z0-9]/g, '_')
+    const inputName = isUrl
+      ? new URL(input).hostname.replace(/[^a-zA-Z0-9]/g, "_")
       : path.basename(input, path.extname(input));
 
     // Save screenshot
@@ -89,18 +125,26 @@ async function scrapeOnePage(input) {
     // Print results
     console.log("\nScraping Results:");
     console.log("-----------------");
+    console.log(`Input: ${input}`);
     console.log(`Price found: ${price || "No price found"}`);
     console.log(`Screenshot saved to: ${screenshotPath}`);
     console.log(`Processed HTML saved to: ${processedHtmlPath}`);
+
+    if (price) {
+      console.log(`Price value: $${price}`);
+    }
   } catch (error) {
     console.error("Error during scraping:", error);
+    process.exit(1);
   }
 }
 
 // Get file path or URL from command line argument
 const input = process.argv[2];
 if (!input) {
-  console.error("Please provide an HTML file path or URL as a command line argument");
+  console.error(
+    "Please provide an HTML file path or URL as a command line argument"
+  );
   console.error("Usage: node scrape-one.js <path-to-html-file-or-url>");
   console.error("Examples:");
   console.error("  node scrape-one.js ./local-file.html");

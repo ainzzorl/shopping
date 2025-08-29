@@ -12,7 +12,7 @@ describe("Price Extraction Tests", () => {
     browser = await puppeteer.launch({
       headless: "new",
       product: "chrome",
-      executablePath: "/usr/bin/chromium",
+      executablePath: "/usr/bin/chromium-browser",
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
   });
