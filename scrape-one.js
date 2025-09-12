@@ -19,7 +19,6 @@ async function scrapeUrl(url) {
 
     console.log(`Navigating to: ${url}`);
     await page.goto(url, {
-      waitUntil: "networkidle2",
       timeout: 30000,
     });
 
