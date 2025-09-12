@@ -168,10 +168,11 @@ async function extractPrice(page) {
   const selectors = [
     ".gl-price-item--sale", // Adidas
     ".product-price__highlight", // Banana Republic
+    "[class='current-sale-price']", // Banana Republic
     "formatted-price-detail", // Massimo Dutti
     '[data-tau-price="new"]', // John Varvatos
     '[data-selector="price-only"]', // Etsy
-    "[class='current-sale-price']", // Banana Republic
+    "[class*='summary_salePrice']", // Bonobos
     "[data-price]",
     '[class*="promoPrice"]',
     '[class*="price"]',
