@@ -4,71 +4,146 @@ const fs = require("fs").promises;
 const puppeteer = require("puppeteer");
 
 async function scrapeUrl(url) {
-  const browser = await puppeteer.launch({
-    headless: "new",
-    product: "chrome",
-    executablePath: "/usr/bin/chromium-browser",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-  const ua =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
-
+  let browser = null;
+  let page = null;
+  
   try {
-    const page = await browser.newPage();
+    browser = await puppeteer.launch({
+      headless: "new",
+      product: "chrome",
+      executablePath: "/usr/bin/chromium-browser",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    const ua =
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
+
+    page = await browser.newPage();
     page.setUserAgent(ua);
 
     console.log(`Navigating to: ${url}`);
-    await page.goto(url, {
-      timeout: 30000,
+    
+    // Set a timeout for the entire operation
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Scraping operation timed out')), 60000); // 60 seconds
     });
+    
+    const scrapingPromise = (async () => {
+      await page.goto(url, {
+        timeout: 30000,
+      });
 
-    // Take a screenshot
-    const screenshot = await page.screenshot({ fullPage: true });
+      // Take a screenshot
+      const screenshot = await page.screenshot({ fullPage: true });
 
-    // Get the page HTML
-    const pageHtml = await page.content();
+      // Get the page HTML
+      const pageHtml = await page.content();
 
-    // Extract price using the existing extractPrice function
-    const price = await extractPrice(page);
+      // Extract price using the existing extractPrice function
+      const price = await extractPrice(page);
 
-    await browser.close();
-    return { price, screenshot, html: pageHtml };
+      return { price, screenshot, html: pageHtml };
+    })();
+    
+    const result = await Promise.race([scrapingPromise, timeoutPromise]);
+    return result;
+    
   } catch (error) {
-    await browser.close();
     throw error;
+  } finally {
+    // Ensure browser is always closed, even if an error occurs
+    if (page) {
+      try {
+        await page.close();
+      } catch (closeError) {
+        console.warn('Error closing page:', closeError);
+      }
+    }
+    
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.warn('Error closing browser:', closeError);
+        // Force kill browser process if normal close fails
+        try {
+          if (browser.process()) {
+            browser.process().kill('SIGKILL');
+          }
+        } catch (killError) {
+          console.warn('Error force killing browser process:', killError);
+        }
+      }
+    }
   }
 }
 
 async function scrapeLocalHtml(htmlPath) {
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-  const ua =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
-
+  let browser = null;
+  let page = null;
+  
   try {
-    const page = await browser.newPage();
+    browser = await puppeteer.launch({
+      headless: "new",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    const ua =
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
+
+    page = await browser.newPage();
     page.setUserAgent(ua);
 
-    // Read and load the HTML file
-    const html = await fs.readFile(htmlPath, "utf-8");
-    await page.setContent(html);
+    // Set a timeout for the entire operation
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Scraping operation timed out')), 60000); // 60 seconds
+    });
+    
+    const scrapingPromise = (async () => {
+      // Read and load the HTML file
+      const html = await fs.readFile(htmlPath, "utf-8");
+      await page.setContent(html);
 
-    // Take a screenshot
-    const screenshot = await page.screenshot();
+      // Take a screenshot
+      const screenshot = await page.screenshot();
 
-    // Get the page HTML
-    const pageHtml = await page.content();
+      // Get the page HTML
+      const pageHtml = await page.content();
 
-    // Extract price using the existing extractPrice function
-    const price = await extractPrice(page);
+      // Extract price using the existing extractPrice function
+      const price = await extractPrice(page);
 
-    await browser.close();
-    return { price, screenshot, html: pageHtml };
+      return { price, screenshot, html: pageHtml };
+    })();
+    
+    const result = await Promise.race([scrapingPromise, timeoutPromise]);
+    return result;
+    
   } catch (error) {
-    await browser.close();
     throw error;
+  } finally {
+    // Ensure browser is always closed, even if an error occurs
+    if (page) {
+      try {
+        await page.close();
+      } catch (closeError) {
+        console.warn('Error closing page:', closeError);
+      }
+    }
+    
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.warn('Error closing browser:', closeError);
+        // Force kill browser process if normal close fails
+        try {
+          if (browser.process()) {
+            browser.process().kill('SIGKILL');
+          }
+        } catch (killError) {
+          console.warn('Error force killing browser process:', killError);
+        }
+      }
+    }
   }
 }
 

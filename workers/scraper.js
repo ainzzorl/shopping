@@ -209,45 +209,89 @@ async function extractPrice(page) {
 }
 
 async function scrapePrice(url) {
-  const browser = await puppeteer.launch({
-    headless: "false",
-    product: "chrome",
-    executablePath:
-      process.platform === "darwin"
-        ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        : "/usr/bin/chromium-browser",
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--window-size=1920,1080",
-    ],
-    defaultViewport: {
-      width: 1920,
-      height: 1080,
-    },
-  });
-  const ua =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
+  let browser = null;
+  let page = null;
 
   try {
-    const page = await browser.newPage();
+    browser = await puppeteer.launch({
+      headless: "false",
+      product: "chrome",
+      executablePath:
+        process.platform === "darwin"
+          ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+          : "/usr/bin/chromium-browser",
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--window-size=1920,1080",
+      ],
+      defaultViewport: {
+        width: 1920,
+        height: 1080,
+      },
+    });
+
+    // Track browser for cleanup
+    activeBrowsers.add(browser);
+
+    const ua =
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
+
+    page = await browser.newPage();
     page.setUserAgent(ua);
-    await page.goto(url, { timeout: 30000 });
 
-    // Take a screenshot
-    const screenshot = await page.screenshot();
+    // Set a timeout for the entire operation
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(
+        () => reject(new Error("Scraping operation timed out")),
+        60000
+      ); // 60 seconds
+    });
 
-    // Get the page HTML
-    const html = await page.content();
+    const scrapingPromise = (async () => {
+      await page.goto(url, { timeout: 30000 });
 
-    // Extract price using the new extractPrice function
-    const price = await extractPrice(page);
+      // Take a screenshot
+      const screenshot = await page.screenshot();
 
-    await browser.close();
-    return { price, screenshot, html };
+      // Get the page HTML
+      const html = await page.content();
+
+      // Extract price using the new extractPrice function
+      const price = await extractPrice(page);
+
+      return { price, screenshot, html };
+    })();
+
+    const result = await Promise.race([scrapingPromise, timeoutPromise]);
+    return result;
   } catch (error) {
-    await browser.close();
     throw error;
+  } finally {
+    // Ensure browser is always closed, even if an error occurs
+    if (page) {
+      try {
+        await page.close();
+      } catch (closeError) {
+        console.warn("Error closing page:", closeError);
+      }
+    }
+
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.warn("Error closing browser:", closeError);
+        // Force kill browser process if normal close fails
+        try {
+          if (browser.process()) {
+            browser.process().kill("SIGKILL");
+          }
+        } catch (killError) {
+          console.warn("Error force killing browser process:", killError);
+        }
+      }
+    }
   }
 }
 
@@ -339,6 +383,49 @@ async function checkPendingTasks() {
     console.error("Error checking pending tasks:", error);
   }
 }
+
+// Track active browsers for cleanup
+const activeBrowsers = new Set();
+
+// Process cleanup handlers
+function cleanupBrowsers() {
+  console.log("Cleaning up browser processes...");
+  for (const browser of activeBrowsers) {
+    try {
+      if (browser && browser.process()) {
+        browser.process().kill("SIGKILL");
+      }
+    } catch (error) {
+      console.warn("Error killing browser process:", error);
+    }
+  }
+  activeBrowsers.clear();
+}
+
+// Register cleanup handlers
+process.on("SIGINT", () => {
+  console.log("Received SIGINT, cleaning up...");
+  cleanupBrowsers();
+  process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+  console.log("Received SIGTERM, cleaning up...");
+  cleanupBrowsers();
+  process.exit(0);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception:", error);
+  cleanupBrowsers();
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled rejection at:", promise, "reason:", reason);
+  cleanupBrowsers();
+  process.exit(1);
+});
 
 // Only start recurring tasks if this is the main module and not in test environment
 if (require.main === module && process.env.NODE_ENV !== "test") {
