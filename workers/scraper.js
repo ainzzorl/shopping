@@ -14,19 +14,32 @@ const CHECK_INTERVAL = 30 * 1000; // 30 seconds
 const SCHEDULE_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const SCRAPE_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
+// Track currently processing tasks to prevent duplicates
+const processingTasks = new Set();
+
 async function getPendingTasks() {
   return new Promise((resolve, reject) => {
-    const query = `
+    // Create a placeholder for task IDs that are currently being processed
+    const processingTaskIds = Array.from(processingTasks);
+    const placeholders = processingTaskIds.map(() => "?").join(",");
+
+    let query = `
             SELECT st.*, i.enabled 
             FROM scraping_tasks st
             JOIN items i ON st.item_id = i.id
             WHERE st.execution_time IS NULL 
             AND i.enabled = 1
-            AND strftime('%s', st.scheduled_time) <= strftime('%s', datetime('now', 'localtime'))
-            ORDER BY st.scheduled_time ASC
-            LIMIT 5`;
+            AND strftime('%s', st.scheduled_time) <= strftime('%s', datetime('now', 'localtime'))`;
 
-    db.all(query, [], (err, rows) => {
+    // Exclude tasks that are currently being processed
+    if (processingTaskIds.length > 0) {
+      query += ` AND st.id NOT IN (${placeholders})`;
+    }
+
+    query += ` ORDER BY st.scheduled_time ASC LIMIT 5`;
+
+    const params = processingTaskIds;
+    db.all(query, params, (err, rows) => {
       if (err) reject(err);
       else resolve(rows);
     });
@@ -241,6 +254,9 @@ async function scrapePrice(url) {
 async function processTask(task) {
   console.log(`Processing task ${task.id} for item ${task.item_id}`);
 
+  // Add task to processing set to prevent duplicates
+  processingTasks.add(task.id);
+
   try {
     // Perform the scraping
     const { price, screenshot, html } = await scrapePrice(task.url);
@@ -273,6 +289,9 @@ async function processTask(task) {
   } catch (error) {
     console.error(`Error processing task ${task.id}:`, error);
     await updateTaskStatus(task.id, false);
+  } finally {
+    // Always remove task from processing set when done
+    processingTasks.delete(task.id);
   }
 }
 
