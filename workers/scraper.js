@@ -173,6 +173,7 @@ async function extractPrice(page) {
     '[data-tau-price="new"]', // John Varvatos
     '[data-selector="price-only"]', // Etsy
     "[class*='summary_salePrice']", // Bonobos
+    "[class*='price__number price__number--sale']", // Rebel Cheese
     "[data-price]",
     '[class*="promoPrice"]',
     '[class*="price"]',
