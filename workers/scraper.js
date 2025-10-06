@@ -296,7 +296,13 @@ async function scrapePrice(url) {
 }
 
 async function processTask(task) {
+  if (processingTasks.has(task.id)) {
+    console.log(`Task ${task.id} is already being processed`);
+    return;
+  }
+
   console.log(`Processing task ${task.id} for item ${task.item_id}`);
+  console.log("All processing tasks:", processingTasks);
 
   // Add task to processing set to prevent duplicates
   processingTasks.add(task.id);
