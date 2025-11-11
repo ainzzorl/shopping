@@ -19,6 +19,7 @@ app.set("layout", "layout");
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/results", express.static(path.join(__dirname, "results")));
 
 // Make moment available in all views
 app.locals.moment = moment;

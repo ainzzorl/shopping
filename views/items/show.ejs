@@ -114,10 +114,10 @@
                                 </td>
                                 <td>
                                     <% if (task.screenshot_path) { %>
-                                        <a href="/<%= task.screenshot_path %>" target="_blank" class="btn btn-sm btn-outline-primary">Screenshot</a>
+                                        <a href="/<%= task.screenshot_path.replace(/^.*[\/\\]results[\/\\]/, 'results/') %>" target="_blank" class="btn btn-sm btn-outline-primary">Screenshot</a>
                                     <% } %>
                                     <% if (task.html_path) { %>
-                                        <a href="/<%= task.html_path %>" target="_blank" class="btn btn-sm btn-outline-secondary">HTML</a>
+                                        <a href="/<%= task.html_path.replace(/^.*[\/\\]results[\/\\]/, 'results/') %>" target="_blank" class="btn btn-sm btn-outline-secondary">HTML</a>
                                     <% } %>
                                 </td>
                             </tr>

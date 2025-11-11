@@ -312,17 +312,13 @@ async function processTask(task) {
     const { price, screenshot, html } = await scrapePrice(task.url);
 
     // Save the screenshot
-    const screenshotPath = path.join(
-      RESULTS_DIR,
-      `task_${task.id}_${Date.now()}.png`
-    );
+    const screenshotFilename = `task_${task.id}_${Date.now()}.png`;
+    const screenshotPath = path.join(RESULTS_DIR, screenshotFilename);
     await fs.writeFile(screenshotPath, screenshot);
 
     // Save the HTML
-    const htmlPath = path.join(
-      RESULTS_DIR,
-      `task_${task.id}_${Date.now()}.html`
-    );
+    const htmlFilename = `task_${task.id}_${Date.now()}.html`;
+    const htmlPath = path.join(RESULTS_DIR, htmlFilename);
     await fs.writeFile(htmlPath, html);
 
     if (!price) {
@@ -332,8 +328,10 @@ async function processTask(task) {
     // Save the price datapoint
     await saveDataPoint(task.item_id, price);
 
-    // Update task status with separate paths
-    await updateTaskStatus(task.id, true, screenshotPath, htmlPath);
+    // Update task status with relative paths (for web access)
+    const relativeScreenshotPath = `results/${screenshotFilename}`;
+    const relativeHtmlPath = `results/${htmlFilename}`;
+    await updateTaskStatus(task.id, true, relativeScreenshotPath, relativeHtmlPath);
 
     console.log(`Successfully processed task ${task.id}`);
   } catch (error) {
