@@ -13,6 +13,7 @@ fs.mkdir(RESULTS_DIR, { recursive: true }).catch(console.error);
 const CHECK_INTERVAL = 30 * 1000; // 30 seconds
 const SCHEDULE_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const SCRAPE_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 // Track currently processing tasks to prevent duplicates
 const processingTasks = new Set();
@@ -147,6 +148,83 @@ async function checkPriceDrops() {
     }
   } catch (error) {
     console.error("Error checking price drops:", error);
+  }
+}
+
+async function cleanupOldFiles() {
+  try {
+    // Get tasks older than 90 days that have screenshot or html paths
+    const query = `
+            SELECT id, screenshot_path, html_path
+            FROM scraping_tasks
+            WHERE execution_time IS NOT NULL
+            AND execution_time < datetime('now', '-90 days')
+            AND (screenshot_path IS NOT NULL OR html_path IS NOT NULL)`;
+
+    const tasks = await new Promise((resolve, reject) => {
+      db.all(query, [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+
+    console.log(`Found ${tasks.length} old tasks with files to clean up`);
+
+    let deletedFiles = 0;
+    let failedFiles = 0;
+
+    for (const task of tasks) {
+      const filesToDelete = [];
+      
+      // Add screenshot path if it exists
+      if (task.screenshot_path) {
+        // Handle both relative and absolute paths
+        const screenshotPath = task.screenshot_path.startsWith('results/')
+          ? path.join(__dirname, '..', task.screenshot_path)
+          : path.join(RESULTS_DIR, path.basename(task.screenshot_path));
+        filesToDelete.push(screenshotPath);
+      }
+
+      // Add html path if it exists
+      if (task.html_path) {
+        // Handle both relative and absolute paths
+        const htmlPath = task.html_path.startsWith('results/')
+          ? path.join(__dirname, '..', task.html_path)
+          : path.join(RESULTS_DIR, path.basename(task.html_path));
+        filesToDelete.push(htmlPath);
+      }
+
+      // Delete the files
+      for (const filePath of filesToDelete) {
+        try {
+          await fs.unlink(filePath);
+          deletedFiles++;
+          console.log(`Deleted file: ${filePath}`);
+        } catch (error) {
+          // File might already be deleted or not exist
+          if (error.code !== 'ENOENT') {
+            console.warn(`Error deleting file ${filePath}:`, error);
+            failedFiles++;
+          }
+        }
+      }
+
+      // Update database to set paths to NULL
+      await new Promise((resolve, reject) => {
+        db.run(
+          'UPDATE scraping_tasks SET screenshot_path = NULL, html_path = NULL WHERE id = ?',
+          [task.id],
+          (err) => {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+    }
+
+    console.log(`Cleanup complete: ${deletedFiles} files deleted, ${failedFiles} failed`);
+  } catch (error) {
+    console.error("Error cleaning up old files:", error);
   }
 }
 
@@ -442,13 +520,17 @@ if (require.main === module && process.env.NODE_ENV !== "test") {
   // Run the price drop checker every 30 seconds
   setInterval(checkPriceDrops, CHECK_INTERVAL);
 
+  // Run the file cleanup once per day
+  setInterval(cleanupOldFiles, CLEANUP_INTERVAL);
+
   // Run all immediately on startup
   checkPendingTasks();
   scheduleNewTasks();
   checkPriceDrops();
+  cleanupOldFiles();
 
   console.log(
-    "Scraper worker started. Checking for tasks and price drops every 30 seconds and scheduling new tasks every 5 minutes..."
+    "Scraper worker started. Checking for tasks and price drops every 30 seconds, scheduling new tasks every 5 minutes, and cleaning up old files daily..."
   );
 }
 
@@ -464,4 +546,5 @@ module.exports = {
   updateTaskStatus,
   getPendingTasks,
   saveDataPoint,
+  cleanupOldFiles,
 };
