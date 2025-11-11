@@ -137,7 +137,17 @@ app.get("/items/:id", (req, res) => {
           console.error(err);
           return res.status(500).send("Database error");
         }
-        res.render("items/show", { item, datapoints });
+        db.all(
+          "SELECT * FROM scraping_tasks WHERE item_id = ? ORDER BY scheduled_time DESC",
+          [id],
+          (err, scrapingTasks) => {
+            if (err) {
+              console.error(err);
+              return res.status(500).send("Database error");
+            }
+            res.render("items/show", { item, datapoints, scrapingTasks });
+          }
+        );
       }
     );
   });

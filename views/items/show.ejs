@@ -77,5 +77,56 @@
             <% } else { %>
                 <p class="text-muted">No price history available yet.</p>
                 <% } %>
+
+        <h2 class="mt-5">Scraping History</h2>
+        <% if (scrapingTasks.length> 0) { %>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Scheduled Time</th>
+                            <th>Execution Time</th>
+                            <th>Status</th>
+                            <th>Resources</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% scrapingTasks.forEach(task=> { %>
+                            <tr>
+                                <td>
+                                    <%= moment(task.scheduled_time).format('YYYY-MM-DD HH:mm:ss') %>
+                                </td>
+                                <td>
+                                    <% if (task.execution_time) { %>
+                                        <%= moment(task.execution_time).format('YYYY-MM-DD HH:mm:ss') %>
+                                    <% } else { %>
+                                        <span class="text-muted">Not executed yet</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% if (task.success === null) { %>
+                                        <span class="badge bg-secondary">Pending</span>
+                                    <% } else if (task.success) { %>
+                                        <span class="badge bg-success">Success</span>
+                                    <% } else { %>
+                                        <span class="badge bg-danger">Failed</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% if (task.screenshot_path) { %>
+                                        <a href="/<%= task.screenshot_path %>" target="_blank" class="btn btn-sm btn-outline-primary">Screenshot</a>
+                                    <% } %>
+                                    <% if (task.html_path) { %>
+                                        <a href="/<%= task.html_path %>" target="_blank" class="btn btn-sm btn-outline-secondary">HTML</a>
+                                    <% } %>
+                                </td>
+                            </tr>
+                            <% }); %>
+                    </tbody>
+                </table>
+            </div>
+            <% } else { %>
+                <p class="text-muted">No scraping tasks yet.</p>
+                <% } %>
     </div>
 </div>
