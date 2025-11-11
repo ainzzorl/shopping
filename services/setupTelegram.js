@@ -11,6 +11,17 @@ const rl = readline.createInterface({
 });
 
 (async () => {
+  // Check if apiId is configured
+  if (!telegramConfig.apiId || String(telegramConfig.apiId).trim() === "") {
+    console.log(
+      "Telegram setup skipped: apiId not configured in config/telegram.js"
+    );
+    console.log(
+      "Please set apiId, apiHash, and channelId in config/telegram.js to enable Telegram notifications."
+    );
+    process.exit(0);
+  }
+
   console.log("Loading interactive example...");
   const client = new TelegramClient(
     stringSession,

@@ -5,8 +5,12 @@ const telegramConfig = require("../config/telegram");
 
 let client = null;
 
-// Only initialize Telegram client if not in test environment
-if (process.env.NODE_ENV !== "test") {
+// Only initialize Telegram client if not in test environment and apiId is configured
+if (
+  process.env.NODE_ENV !== "test" &&
+  telegramConfig.apiId &&
+  String(telegramConfig.apiId).trim() !== ""
+) {
   // Initialize Telegram client
   // You'll need to set these environment variables:
   // TELEGRAM_API_ID: Your API ID from https://my.telegram.org
@@ -28,6 +32,10 @@ if (process.env.NODE_ENV !== "test") {
       );
     }
   })();
+} else if (process.env.NODE_ENV !== "test") {
+  console.log(
+    "Telegram notifications disabled: apiId not configured in config/telegram.js"
+  );
 }
 
 async function sendPriceAlert(item, currentPrice) {
@@ -77,6 +85,11 @@ async function sendPriceAlert(item, currentPrice) {
           )
         ),
       ]);
+    } else {
+      console.log(
+        "Telegram not configured - would have sent:",
+        message.split("\n")[0]
+      );
     }
 
     // Store the notification in the database
