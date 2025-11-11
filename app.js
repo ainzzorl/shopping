@@ -130,27 +130,25 @@ app.get("/items/:id", (req, res) => {
     if (!item) {
       return res.status(404).send("Item not found");
     }
-    db.all(
-      "SELECT * FROM item_datapoints WHERE item_id = ? ORDER BY timestamp DESC",
-      [id],
-      (err, datapoints) => {
-        if (err) {
-          console.error(err);
-          return res.status(500).send("Database error");
-        }
-        db.all(
-          "SELECT * FROM scraping_tasks WHERE item_id = ? ORDER BY scheduled_time DESC",
-          [id],
-          (err, scrapingTasks) => {
-            if (err) {
-              console.error(err);
-              return res.status(500).send("Database error");
-            }
-            res.render("items/show", { item, datapoints, scrapingTasks });
-          }
-        );
+    // Get scraping tasks with their associated price datapoints
+    const query = `
+      SELECT
+        st.*,
+        dp.price,
+        dp.timestamp as price_timestamp
+      FROM scraping_tasks st
+      LEFT JOIN item_datapoints dp ON st.item_id = dp.item_id
+        AND datetime(st.execution_time) = datetime(dp.timestamp)
+      WHERE st.item_id = ?
+      ORDER BY st.scheduled_time DESC
+    `;
+    db.all(query, [id], (err, scrapingTasks) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).send("Database error");
       }
-    );
+      res.render("items/show", { item, scrapingTasks });
+    });
   });
 });
 

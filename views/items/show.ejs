@@ -44,49 +44,17 @@
             </div>
         </div>
 
-        <h2>Price History</h2>
-        <% if (datapoints.length> 0) { %>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Price</th>
-                            <th>Difference from Target</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <% datapoints.forEach(datapoint=> { %>
-                            <tr>
-                                <td>
-                                    <%= moment(datapoint.timestamp).format('YYYY-MM-DD HH:mm:ss') %>
-                                </td>
-                                <td>$<%= datapoint.price.toFixed(2) %>
-                                </td>
-                                <td>
-                                    <% const diff=datapoint.price - item.target_price; %>
-                                        <span class="<%= diff > 0 ? 'text-danger' : 'text-success' %>">
-                                            <%= diff> 0 ? '+' : '' %>$<%= diff.toFixed(2) %>
-                                        </span>
-                                </td>
-                            </tr>
-                            <% }); %>
-                    </tbody>
-                </table>
-            </div>
-            <% } else { %>
-                <p class="text-muted">No price history available yet.</p>
-                <% } %>
-
-        <h2 class="mt-5">Scraping History</h2>
+        <h2>Scraping & Price History</h2>
         <% if (scrapingTasks.length> 0) { %>
             <div class="table-responsive">
                 <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th>Scheduled Time</th>
-                            <th>Execution Time</th>
+                            <th>Scheduled</th>
+                            <th>Executed</th>
                             <th>Status</th>
+                            <th>Price</th>
+                            <th>vs Target</th>
                             <th>Resources</th>
                         </tr>
                     </thead>
@@ -100,7 +68,7 @@
                                     <% if (task.execution_time) { %>
                                         <%= moment(task.execution_time).format('YYYY-MM-DD HH:mm:ss') %>
                                     <% } else { %>
-                                        <span class="text-muted">Not executed yet</span>
+                                        <span class="text-muted">Pending</span>
                                     <% } %>
                                 </td>
                                 <td>
@@ -110,6 +78,23 @@
                                         <span class="badge bg-success">Success</span>
                                     <% } else { %>
                                         <span class="badge bg-danger">Failed</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% if (task.price !== null && task.price !== undefined) { %>
+                                        $<%= task.price.toFixed(2) %>
+                                    <% } else { %>
+                                        <span class="text-muted">—</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% if (task.price !== null && task.price !== undefined) { %>
+                                        <% const diff=task.price - item.target_price; %>
+                                        <span class="<%= diff > 0 ? 'text-danger' : 'text-success' %>">
+                                            <%= diff> 0 ? '+' : '' %>$<%= diff.toFixed(2) %>
+                                        </span>
+                                    <% } else { %>
+                                        <span class="text-muted">—</span>
                                     <% } %>
                                 </td>
                                 <td>
@@ -126,7 +111,7 @@
                 </table>
             </div>
             <% } else { %>
-                <p class="text-muted">No scraping tasks yet.</p>
+                <p class="text-muted">No scraping history yet.</p>
                 <% } %>
     </div>
 </div>
