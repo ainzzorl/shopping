@@ -175,6 +175,7 @@ async function cleanupOldFiles() {
     let failedFiles = 0;
 
     for (const task of tasks) {
+      console.log(`Processing task ${task.id} for cleanup`);
       const filesToDelete = [];
       
       // Add screenshot path if it exists
