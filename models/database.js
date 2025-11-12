@@ -55,6 +55,7 @@ db.serialize(() => {
         success BOOLEAN,
         screenshot_path TEXT,
         html_path TEXT,
+        error_message TEXT,
         FOREIGN KEY (item_id) REFERENCES items (id)
     )`);
 

@@ -51,12 +51,13 @@ async function updateTaskStatus(
   taskId,
   success,
   screenshotPath = null,
-  htmlPath = null
+  htmlPath = null,
+  errorMessage = null
 ) {
   return new Promise((resolve, reject) => {
     db.run(
-      "UPDATE scraping_tasks SET execution_time = datetime('now', 'localtime'), success = ?, screenshot_path = ?, html_path = ? WHERE id = ?",
-      [success ? 1 : 0, screenshotPath, htmlPath, taskId],
+      "UPDATE scraping_tasks SET execution_time = datetime('now', 'localtime'), success = ?, screenshot_path = ?, html_path = ?, error_message = ? WHERE id = ?",
+      [success ? 1 : 0, screenshotPath, htmlPath, errorMessage, taskId],
       (err) => {
         if (err) reject(err);
         else resolve();
@@ -385,19 +386,28 @@ async function processTask(task) {
   // Add task to processing set to prevent duplicates
   processingTasks.add(task.id);
 
+  let relativeScreenshotPath = null;
+  let relativeHtmlPath = null;
+
   try {
     // Perform the scraping
     const { price, screenshot, html } = await scrapePrice(task.url);
 
-    // Save the screenshot
-    const screenshotFilename = `task_${task.id}_${Date.now()}.png`;
-    const screenshotPath = path.join(RESULTS_DIR, screenshotFilename);
-    await fs.writeFile(screenshotPath, screenshot);
+    // Save the screenshot if available
+    if (screenshot) {
+      const screenshotFilename = `task_${task.id}_${Date.now()}.png`;
+      const screenshotPath = path.join(RESULTS_DIR, screenshotFilename);
+      await fs.writeFile(screenshotPath, screenshot);
+      relativeScreenshotPath = `results/${screenshotFilename}`;
+    }
 
-    // Save the HTML
-    const htmlFilename = `task_${task.id}_${Date.now()}.html`;
-    const htmlPath = path.join(RESULTS_DIR, htmlFilename);
-    await fs.writeFile(htmlPath, html);
+    // Save the HTML if available
+    if (html) {
+      const htmlFilename = `task_${task.id}_${Date.now()}.html`;
+      const htmlPath = path.join(RESULTS_DIR, htmlFilename);
+      await fs.writeFile(htmlPath, html);
+      relativeHtmlPath = `results/${htmlFilename}`;
+    }
 
     if (!price) {
       throw new Error("Could not extract price");
@@ -407,14 +417,14 @@ async function processTask(task) {
     await saveDataPoint(task.item_id, price);
 
     // Update task status with relative paths (for web access)
-    const relativeScreenshotPath = `results/${screenshotFilename}`;
-    const relativeHtmlPath = `results/${htmlFilename}`;
     await updateTaskStatus(task.id, true, relativeScreenshotPath, relativeHtmlPath);
 
     console.log(`Successfully processed task ${task.id}`);
   } catch (error) {
     console.error(`Error processing task ${task.id}:`, error);
-    await updateTaskStatus(task.id, false);
+    const errorMessage = error.message || String(error);
+    // Pass screenshot and html paths even on failure, if they were captured
+    await updateTaskStatus(task.id, false, relativeScreenshotPath, relativeHtmlPath, errorMessage);
   } finally {
     // Always remove task from processing set when done
     processingTasks.delete(task.id);
