@@ -1,83 +1,23 @@
 const { extractPrice, scrapePrice } = require("./workers/scraper");
 const path = require("path");
 const fs = require("fs").promises;
-const puppeteer = require("puppeteer");
 
+// Reuse the scrapePrice function from workers/scraper.js
+// This avoids code duplication and ensures consistent behavior
 async function scrapeUrl(url) {
-  let browser = null;
-  let page = null;
+  console.log(`Navigating to: ${url}`);
+  console.log('Note: If your regular Chromium browser is open, please close it first.\n');
   
-  try {
-    browser = await puppeteer.launch({
-      headless: "new",
-      product: "chrome",
-      executablePath: "/usr/bin/chromium-browser",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const ua =
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
-
-    page = await browser.newPage();
-    page.setUserAgent(ua);
-
-    console.log(`Navigating to: ${url}`);
-    
-    // Set a timeout for the entire operation
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Scraping operation timed out')), 60000); // 60 seconds
-    });
-    
-    const scrapingPromise = (async () => {
-      await page.goto(url, {
-        timeout: 30000,
-      });
-
-      // Take a screenshot
-      const screenshot = await page.screenshot({ fullPage: true });
-
-      // Get the page HTML
-      const pageHtml = await page.content();
-
-      // Extract price using the existing extractPrice function
-      const price = await extractPrice(page);
-
-      return { price, screenshot, html: pageHtml };
-    })();
-    
-    const result = await Promise.race([scrapingPromise, timeoutPromise]);
-    return result;
-    
-  } catch (error) {
-    throw error;
-  } finally {
-    // Ensure browser is always closed, even if an error occurs
-    if (page) {
-      try {
-        await page.close();
-      } catch (closeError) {
-        console.warn('Error closing page:', closeError);
-      }
-    }
-    
-    if (browser) {
-      try {
-        await browser.close();
-      } catch (closeError) {
-        console.warn('Error closing browser:', closeError);
-        // Force kill browser process if normal close fails
-        try {
-          if (browser.process()) {
-            browser.process().kill('SIGKILL');
-          }
-        } catch (killError) {
-          console.warn('Error force killing browser process:', killError);
-        }
-      }
-    }
+  if (process.env.PROXY_SERVER) {
+    console.log(`Using proxy: ${process.env.PROXY_SERVER}\n`);
   }
+  
+  return await scrapePrice(url);
 }
 
 async function scrapeLocalHtml(htmlPath) {
+  // Use basic puppeteer for local HTML files (no CAPTCHA concerns)
+  const puppeteer = require("puppeteer");
   let browser = null;
   let page = null;
   
@@ -86,11 +26,8 @@ async function scrapeLocalHtml(htmlPath) {
       headless: "new",
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
-    const ua =
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
 
     page = await browser.newPage();
-    page.setUserAgent(ua);
 
     // Set a timeout for the entire operation
     const timeoutPromise = new Promise((_, reject) => {
@@ -157,8 +94,8 @@ async function scrapeOnePage(input) {
     // Check if input is a URL
     if (input.startsWith("http://") || input.startsWith("https://")) {
       isUrl = true;
-      console.log("Detected URL, using scrapePrice function...");
-      result = await scrapePrice(input);
+      console.log("Detected URL, using scrapeUrl function...");
+      result = await scrapeUrl(input);
     } else {
       // Check if the file exists
       try {

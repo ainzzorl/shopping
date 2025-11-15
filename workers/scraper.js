@@ -1,9 +1,22 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const cron = require("node-cron");
 const path = require("path");
 const fs = require("fs").promises;
+const os = require("os");
 const db = require("../models/database");
 const { sendPriceAlert } = require("../services/notificationService");
+
+// Configure stealth plugin with all evasions
+const stealthPlugin = StealthPlugin();
+// Remove plugin that might interfere
+stealthPlugin.enabledEvasions.delete('user-agent-override');
+puppeteer.use(stealthPlugin);
+
+// Helper function to add delays
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // Create results directory if it doesn't exist
 const RESULTS_DIR = path.join(__dirname, "../results");
@@ -293,32 +306,46 @@ async function scrapePrice(url) {
   let page = null;
 
   try {
-    browser = await puppeteer.launch({
-      headless: "false",
-      product: "chrome",
-      executablePath:
-        process.platform === "darwin"
-          ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-          : "/usr/bin/chromium-browser",
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--window-size=1920,1080",
-      ],
-      defaultViewport: {
-        width: 1920,
-        height: 1080,
-      },
-    });
+    // Use the user's actual Chrome profile to inherit cookies and session
+    const userDataDir = path.join(os.homedir(), '.config', 'chromium');
+    
+    // Check for proxy environment variable
+    const proxyServer = process.env.PROXY_SERVER; // e.g., "http://proxy-server:port"
+    const launchArgs = [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--window-size=1920,1080"
+    ];
+    
+    if (proxyServer) {
+      console.log(`Using proxy: ${proxyServer}`);
+      launchArgs.push(`--proxy-server=${proxyServer}`);
+    }
+    
+    try {
+      browser = await puppeteer.launch({
+        headless: false,
+        executablePath: "/usr/bin/chromium-browser",
+        userDataDir: userDataDir,
+        args: launchArgs,
+      });
+    } catch (profileError) {
+      // If the main profile is locked, try using a separate profile with puppeteer-specific settings
+      console.log('Main profile in use, using alternative profile for worker...');
+      const altProfileDir = path.join(__dirname, '..', '.chrome-profile-worker');
+      
+      browser = await puppeteer.launch({
+        headless: false,
+        executablePath: "/usr/bin/chromium-browser",
+        userDataDir: altProfileDir,
+        args: launchArgs,
+      });
+    }
 
     // Track browser for cleanup
     activeBrowsers.add(browser);
 
-    const ua =
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:135.0) Gecko/20100101 Firefox/135.0";
-
     page = await browser.newPage();
-    page.setUserAgent(ua);
 
     // Set a timeout for the entire operation
     const timeoutPromise = new Promise((_, reject) => {
@@ -329,7 +356,49 @@ async function scrapePrice(url) {
     });
 
     const scrapingPromise = (async () => {
-      await page.goto(url, { timeout: 30000 });
+      await page.goto(url, { 
+        timeout: 30000,
+        waitUntil: 'domcontentloaded'
+      });
+
+      // Wait for any dynamic content and CAPTCHA iframes to load
+      await delay(5000);
+
+      // Check if we're blocked or on a CAPTCHA page
+      const blockInfo = await page.evaluate(() => {
+        const bodyText = document.body.innerText.toLowerCase();
+        const hasCaptchaIframe = document.querySelector('iframe[src*="captcha"]') !== null;
+        const hasCaptchaScript = document.querySelector('script[src*="captcha"]') !== null;
+        const bodyLength = bodyText.length;
+        
+        // Check for common blocking/CAPTCHA indicators
+        const hasBlockedText = bodyText.includes('access blocked') || 
+                               bodyText.includes('access denied') ||
+                               bodyText.includes('unusual activity') ||
+                               bodyText.includes('automated') ||
+                               bodyText.includes('captcha') ||
+                               bodyText.includes('verify you are human') ||
+                               bodyText.includes('security check');
+        
+        // Suspicious if page is very short and has CAPTCHA elements
+        const suspiciouslyShort = bodyLength < 500 && (hasCaptchaIframe || hasCaptchaScript);
+        
+        return {
+          isBlocked: hasBlockedText || suspiciouslyShort,
+          text: bodyText.substring(0, 500), // First 500 chars for debugging
+          title: document.title,
+          hasCaptcha: hasCaptchaIframe || hasCaptchaScript
+        };
+      });
+      
+      if (blockInfo.isBlocked) {
+        console.log('\n⚠️  WARNING: Possible CAPTCHA or access block detected');
+        console.log(`Page title: ${blockInfo.title}`);
+        if (blockInfo.hasCaptcha) {
+          console.log('CAPTCHA elements found on page');
+        }
+        console.log('This may affect price extraction accuracy.\n');
+      }
 
       // Take a screenshot
       const screenshot = await page.screenshot();
@@ -337,7 +406,7 @@ async function scrapePrice(url) {
       // Get the page HTML
       const html = await page.content();
 
-      // Extract price using the new extractPrice function
+      // Extract price using the extractPrice function
       const price = await extractPrice(page);
 
       return { price, screenshot, html };
@@ -348,6 +417,11 @@ async function scrapePrice(url) {
   } catch (error) {
     throw error;
   } finally {
+    // Remove from tracking
+    if (browser) {
+      activeBrowsers.delete(browser);
+    }
+
     // Ensure browser is always closed, even if an error occurs
     if (page) {
       try {
