@@ -31,6 +31,9 @@ const CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 // Track currently processing tasks to prevent duplicates
 const processingTasks = new Set();
 
+// Flag to ensure only one checkPendingTasks runs at a time
+let isCheckingTasks = false;
+
 async function getPendingTasks() {
   return new Promise((resolve, reject) => {
     // Create a placeholder for task IDs that are currently being processed
@@ -50,7 +53,8 @@ async function getPendingTasks() {
       query += ` AND st.id NOT IN (${placeholders})`;
     }
 
-    query += ` ORDER BY st.scheduled_time ASC LIMIT 5`;
+    // Only fetch 1 task at a time to ensure sequential processing
+    query += ` ORDER BY st.scheduled_time ASC LIMIT 1`;
 
     const params = processingTaskIds;
     db.all(query, params, (err, rows) => {
@@ -539,15 +543,32 @@ async function scheduleNewTasks() {
 }
 
 async function checkPendingTasks() {
+  // Prevent concurrent execution
+  if (isCheckingTasks) {
+    console.log("Task checker is already running, skipping this interval");
+    return;
+  }
+
+  // Prevent processing if there are already tasks being processed
+  if (processingTasks.size > 0) {
+    console.log("A task is currently being processed, skipping this interval");
+    return;
+  }
+
+  isCheckingTasks = true;
+
   try {
     const tasks = await getPendingTasks();
     console.log(`Found ${tasks.length} pending tasks`);
 
-    for (const task of tasks) {
-      await processTask(task);
+    // Only process the first task (getPendingTasks now returns max 1 task)
+    if (tasks.length > 0) {
+      await processTask(tasks[0]);
     }
   } catch (error) {
     console.error("Error checking pending tasks:", error);
+  } finally {
+    isCheckingTasks = false;
   }
 }
 
