@@ -74,16 +74,21 @@ async function sendPriceAlert(item, currentPrice) {
     // Only send message if client is initialized (not in test environment)
     if (client) {
       console.log("Sending message to Telegram");
-      await Promise.race([
-        client.sendMessage(await client.getEntity(telegramConfig.channelId), {
+      await Promise.race([(async () => {
+        let entity = await client.getEntity(telegramConfig.channelId);
+        console.log("Entity found");
+        client.sendMessage(entity, {
           message,
-        }),
-        new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Telegram message send timed out")),
-            10000
-          )
-        ),
+        });
+        console.log("Message sent");
+        return true;
+      })(),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Telegram message send timed out")),
+          10000
+        )
+      ),
       ]);
     } else {
       console.log(
@@ -95,6 +100,7 @@ async function sendPriceAlert(item, currentPrice) {
     // Store the notification in the database
     await Promise.race([
       new Promise((resolve, reject) => {
+        console.log("Inserting notification into database");
         db.run(
           `INSERT INTO notifications (item_id, price, type) VALUES (?, ?, ?)`,
           [item.id, currentPrice, "price_drop"],
@@ -103,6 +109,7 @@ async function sendPriceAlert(item, currentPrice) {
             resolve();
           }
         );
+        console.log("Notification inserted into database");
       }),
       new Promise((_, reject) =>
         setTimeout(() => reject(new Error("Database insert timed out")), 5000)
