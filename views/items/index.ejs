@@ -55,7 +55,8 @@
                     </thead>
                     <tbody>
                         <% items.forEach(item=> { %>
-                            <tr>
+                            <tr
+                                class="<%= !item.enabled ? 'text-muted opacity-50' : (!item.enable_notifications ? 'opacity-75' : '') %>">
                                 <td>
                                     <a href="<%= item.url %>" target="_blank" class="text-decoration-none">
                                         <%= item.name %>
@@ -75,24 +76,37 @@
                                 </td>
                                 <td>
                                     <% if (item.current_price) { %>
-                                        $<%= item.current_price.toFixed(2) %>
-                                            <% const priceDiff=((item.current_price - item.target_price) /
-                                                item.target_price * 100).toFixed(1) %>
-                                                <small class="<%= priceDiff > 0 ? 'text-danger' : 'text-success' %>">
-                                                    (<%= priceDiff> 0 ? '+' : '' %><%= priceDiff %>%)
-                                                </small>
-                                                <br>
-                                                <small class="text-muted">
-                                                    (<%= moment(item.price_timestamp).fromNow() %>)
-                                                </small>
-                                                <% } else { %>
-                                                    <span class="text-muted">No data yet</span>
-                                                    <% } %>
+                                        <% const daysSincePrice=moment().diff(moment(item.price_timestamp), 'days' ); %>
+                                            <% if (daysSincePrice> 3) { %>
+                                                <i class="bi bi-exclamation-triangle-fill text-warning"
+                                                    title="No successful scrape in 3+ days"></i>
+                                                <% } %>
+                                                    $<%= item.current_price.toFixed(2) %>
+                                                        <% const priceDiff=((item.current_price - item.target_price) /
+                                                            item.target_price * 100).toFixed(1) %>
+                                                            <small
+                                                                class="<%= priceDiff > 0 ? 'text-danger' : 'text-success' %>">
+                                                                (<%= priceDiff> 0 ? '+' : '' %><%= priceDiff %>%)
+                                                            </small>
+                                                            <br>
+                                                            <small class="text-muted">
+                                                                (<%= moment(item.price_timestamp).fromNow() %>)
+                                                            </small>
+                                                            <% } else { %>
+                                                                <i class="bi bi-exclamation-triangle-fill text-warning"
+                                                                    title="No successful scrape in 3+ days"></i>
+                                                                <span class="text-muted">No data yet</span>
+                                                                <% } %>
                                 </td>
                                 <td>
                                     <span class="badge <%= item.enabled ? 'bg-success' : 'bg-secondary' %>">
                                         <%= item.enabled ? 'Enabled' : 'Disabled' %>
                                     </span>
+                                    <br>
+                                    <small
+                                        class="badge <%= item.enable_notifications ? 'bg-info' : 'bg-warning' %> mt-1">
+                                        Notifications: <%= item.enable_notifications ? 'On' : 'Off' %>
+                                    </small>
                                 </td>
                                 <td>
                                     <a href="/items/<%= item.id %>" class="btn btn-sm btn-info">View</a>
