@@ -314,6 +314,13 @@ async function scrapePrice(url) {
     // Use the user's actual Chrome profile to inherit cookies and session
     const userDataDir = path.join(os.homedir(), '.config', 'chromium');
     
+    // Run headless if no display is available (e.g. headless Pi, SSH session)
+    const hasDisplay = !!(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
+    const headless = hasDisplay ? false : "new";
+    if (!hasDisplay) {
+      console.log('No display detected, running in headless mode');
+    }
+
     // Check for proxy environment variable
     const proxyServer = process.env.PROXY_SERVER; // e.g., "http://proxy-server:port"
     const launchArgs = [
@@ -321,15 +328,19 @@ async function scrapePrice(url) {
       "--disable-setuid-sandbox",
       "--window-size=1920,1080"
     ];
-    
+
+    if (!hasDisplay) {
+      launchArgs.push("--disable-gpu");
+    }
+
     if (proxyServer) {
       console.log(`Using proxy: ${proxyServer}`);
       launchArgs.push(`--proxy-server=${proxyServer}`);
     }
-    
+
     try {
       browser = await puppeteer.launch({
-        headless: false,
+        headless: headless,
         executablePath: "/usr/bin/chromium-browser",
         userDataDir: userDataDir,
         args: launchArgs,
@@ -338,9 +349,9 @@ async function scrapePrice(url) {
       // If the main profile is locked, try using a separate profile with puppeteer-specific settings
       console.log('Main profile in use, using alternative profile for worker...');
       const altProfileDir = path.join(__dirname, '..', '.chrome-profile-worker');
-      
+
       browser = await puppeteer.launch({
-        headless: false,
+        headless: headless,
         executablePath: "/usr/bin/chromium-browser",
         userDataDir: altProfileDir,
         args: launchArgs,
