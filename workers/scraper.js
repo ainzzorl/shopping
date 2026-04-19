@@ -314,8 +314,16 @@ async function scrapePrice(url) {
     // Use the user's actual Chrome profile to inherit cookies and session
     const userDataDir = path.join(os.homedir(), '.config', 'chromium');
     
-    // Run headless if no display is available (e.g. headless Pi, SSH session)
-    const hasDisplay = !!(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
+    // On Linux, default to :0 so VNC/console sessions work when launched from
+    // SSH, systemd, or cron (which don't inherit DISPLAY). Set DISPLAY=none to
+    // force headless.
+    if (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
+      process.env.DISPLAY = ':0';
+    }
+    const hasDisplay = !!(
+      (process.env.DISPLAY && process.env.DISPLAY !== 'none') ||
+      process.env.WAYLAND_DISPLAY
+    );
     const headless = hasDisplay ? false : "new";
     if (!hasDisplay) {
       console.log('No display detected, running in headless mode');
