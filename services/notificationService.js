@@ -51,7 +51,7 @@ async function sendPriceAlert(item, currentPrice) {
            WHERE i.id = ?`,
           [item.id],
           (err, row) => {
-            if (err) reject(err);
+            if (err) return reject(err);
             resolve(row);
           }
         );
@@ -77,7 +77,7 @@ async function sendPriceAlert(item, currentPrice) {
       await Promise.race([(async () => {
         let entity = await client.getEntity(telegramConfig.channelId);
         console.log("Entity found");
-        client.sendMessage(entity, {
+        await client.sendMessage(entity, {
           message,
         });
         console.log("Message sent");
@@ -105,7 +105,7 @@ async function sendPriceAlert(item, currentPrice) {
           `INSERT INTO notifications (item_id, price, type) VALUES (?, ?, ?)`,
           [item.id, currentPrice, "price_drop"],
           (err) => {
-            if (err) reject(err);
+            if (err) return reject(err);
             resolve();
           }
         );
