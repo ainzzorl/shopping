@@ -319,6 +319,9 @@ async function scrapePrice(url) {
     // force headless.
     if (process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
       process.env.DISPLAY = ':0';
+      if (!process.env.XAUTHORITY) {
+        process.env.XAUTHORITY = path.join(os.homedir(), '.Xauthority');
+      }
     }
     const hasDisplay = !!(
       (process.env.DISPLAY && process.env.DISPLAY !== 'none') ||
