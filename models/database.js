@@ -45,6 +45,11 @@ db.serialize(() => {
         FOREIGN KEY (item_id) REFERENCES items (id)
     )`);
 
+  db.run(
+    `CREATE INDEX IF NOT EXISTS idx_datapoints_item_timestamp
+       ON item_datapoints (item_id, timestamp DESC)`,
+  );
+
   // Create scraping_tasks table
   db.run(`CREATE TABLE IF NOT EXISTS scraping_tasks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

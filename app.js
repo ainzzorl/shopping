@@ -41,14 +41,12 @@ app.get("/", (req, res) => {
                s.website as store_website
         FROM items i
         LEFT JOIN (
-            SELECT item_id, price, timestamp
-            FROM item_datapoints d1
-            WHERE timestamp = (
-                SELECT MAX(timestamp)
-                FROM item_datapoints d2
-                WHERE d2.item_id = d1.item_id
-            )
-        ) d ON i.id = d.item_id
+            SELECT item_id, MAX(timestamp) AS max_timestamp
+            FROM item_datapoints
+            GROUP BY item_id
+        ) m ON m.item_id = i.id
+        LEFT JOIN item_datapoints d
+            ON d.item_id = m.item_id AND d.timestamp = m.max_timestamp
         LEFT JOIN stores s ON i.store_id = s.id
         ORDER BY ${
           safeColumn === "current_price"
