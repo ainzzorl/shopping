@@ -1,4 +1,5 @@
 const { extractPrice, scrapePrice } = require("./workers/scraper");
+const { dismissPopups } = require("./workers/popupDismiss");
 const path = require("path");
 const fs = require("fs").promises;
 
@@ -38,6 +39,9 @@ async function scrapeLocalHtml(htmlPath) {
       // Read and load the HTML file
       const html = await fs.readFile(htmlPath, "utf-8");
       await page.setContent(html);
+
+      await dismissPopups(page);
+      await new Promise((r) => setTimeout(r, 500));
 
       // Take a screenshot
       const screenshot = await page.screenshot();

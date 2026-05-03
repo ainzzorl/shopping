@@ -7,6 +7,7 @@ const os = require("os");
 const db = require("../models/database");
 const { sendPriceAlert } = require("../services/notificationService");
 const { runAiBatch } = require("./aiBatch");
+const { dismissPopups } = require("./popupDismiss");
 
 // Configure stealth plugin with all evasions
 const stealthPlugin = StealthPlugin();
@@ -435,6 +436,10 @@ async function scrapePrice(url) {
         }
         console.log('This may affect price extraction accuracy.\n');
       }
+
+      // Dismiss cookie banners / popups so they don't occlude the price.
+      await dismissPopups(page);
+      await delay(500);
 
       // Take a screenshot
       const screenshot = await page.screenshot();
