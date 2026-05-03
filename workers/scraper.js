@@ -6,6 +6,7 @@ const fs = require("fs").promises;
 const os = require("os");
 const db = require("../models/database");
 const { sendPriceAlert } = require("../services/notificationService");
+const { runAiBatch } = require("./aiBatch");
 
 // Configure stealth plugin with all evasions
 const stealthPlugin = StealthPlugin();
@@ -69,12 +70,13 @@ async function updateTaskStatus(
   success,
   screenshotPath = null,
   htmlPath = null,
-  errorMessage = null
+  errorMessage = null,
+  wasBlocked = false
 ) {
   return new Promise((resolve, reject) => {
     db.run(
-      "UPDATE scraping_tasks SET execution_time = datetime('now', 'localtime'), success = ?, screenshot_path = ?, html_path = ?, error_message = ? WHERE id = ?",
-      [success ? 1 : 0, screenshotPath, htmlPath, errorMessage, taskId],
+      "UPDATE scraping_tasks SET execution_time = datetime('now', 'localtime'), success = ?, screenshot_path = ?, html_path = ?, error_message = ?, was_blocked = ? WHERE id = ?",
+      [success ? 1 : 0, screenshotPath, htmlPath, errorMessage, wasBlocked ? 1 : 0, taskId],
       (err) => {
         if (err) reject(err);
         else resolve();
@@ -103,11 +105,11 @@ async function createNextTask(itemId, url) {
   });
 }
 
-async function saveDataPoint(itemId, price) {
+async function saveDataPoint(itemId, price, taskId = null) {
   return new Promise((resolve, reject) => {
     db.run(
-      "INSERT INTO item_datapoints (item_id, price) VALUES (?, ?)",
-      [itemId, price],
+      "INSERT INTO item_datapoints (item_id, price, task_id) VALUES (?, ?, ?)",
+      [itemId, price, taskId],
       (err) => {
         if (err) reject(err);
         else resolve();
@@ -122,28 +124,35 @@ async function checkPriceDrops() {
     // Only include items that haven't had a notification in the last 7 days
     const query = `
             WITH LatestPrices AS (
-                SELECT 
+                SELECT
                     item_id,
                     price,
                     timestamp,
+                    in_stock,
+                    available,
+                    task_id,
                     ROW_NUMBER() OVER (PARTITION BY item_id ORDER BY timestamp DESC) as rn
                 FROM item_datapoints
             ),
             RecentNotifications AS (
                 SELECT DISTINCT item_id, price
-                FROM notifications 
+                FROM notifications
                 WHERE sent_at >= datetime('now', '-7 days')
             )
-            SELECT 
+            SELECT
                 i.*,
                 lp.price as current_price,
                 lp.timestamp as price_timestamp
             FROM items i
             JOIN LatestPrices lp ON i.id = lp.item_id
-            LEFT JOIN RecentNotifications rn ON i.id = rn.item_id 
+            LEFT JOIN scraping_tasks st ON st.id = lp.task_id
+            LEFT JOIN RecentNotifications rn ON i.id = rn.item_id
                 AND lp.price = rn.price
             WHERE lp.rn = 1
             AND lp.price <= i.target_price
+            AND (lp.in_stock IS NULL OR lp.in_stock = 1)
+            AND (lp.available IS NULL OR lp.available = 1)
+            AND (lp.task_id IS NULL OR st.ai_processed_at IS NOT NULL)
             AND i.enabled = 1
             AND i.enable_notifications = 1
             AND rn.item_id IS NULL`;
@@ -436,7 +445,7 @@ async function scrapePrice(url) {
       // Extract price using the extractPrice function
       const price = await extractPrice(page);
 
-      return { price, screenshot, html };
+      return { price, screenshot, html, wasBlocked: blockInfo.isBlocked };
     })();
 
     const result = await Promise.race([scrapingPromise, timeoutPromise]);
@@ -490,10 +499,13 @@ async function processTask(task) {
 
   let relativeScreenshotPath = null;
   let relativeHtmlPath = null;
+  let wasBlocked = false;
 
   try {
     // Perform the scraping
-    const { price, screenshot, html } = await scrapePrice(task.url);
+    const scrape = await scrapePrice(task.url);
+    const { price, screenshot, html } = scrape;
+    wasBlocked = !!scrape.wasBlocked;
 
     // Save the screenshot if available
     if (screenshot) {
@@ -515,18 +527,18 @@ async function processTask(task) {
       throw new Error("Could not extract price");
     }
 
-    // Save the price datapoint
-    await saveDataPoint(task.item_id, price);
+    // Save the price datapoint, linked to the task that produced it
+    await saveDataPoint(task.item_id, price, task.id);
 
     // Update task status with relative paths (for web access)
-    await updateTaskStatus(task.id, true, relativeScreenshotPath, relativeHtmlPath);
+    await updateTaskStatus(task.id, true, relativeScreenshotPath, relativeHtmlPath, null, wasBlocked);
 
     console.log(`Successfully processed task ${task.id}`);
   } catch (error) {
     console.error(`Error processing task ${task.id}:`, error);
     const errorMessage = error.message || String(error);
     // Pass screenshot and html paths even on failure, if they were captured
-    await updateTaskStatus(task.id, false, relativeScreenshotPath, relativeHtmlPath, errorMessage);
+    await updateTaskStatus(task.id, false, relativeScreenshotPath, relativeHtmlPath, errorMessage, wasBlocked);
   } finally {
     // Always remove task from processing set when done
     processingTasks.delete(task.id);
@@ -652,14 +664,23 @@ if (require.main === module && process.env.NODE_ENV !== "test") {
   // Run the file cleanup once per day
   setInterval(cleanupOldFiles, CLEANUP_INTERVAL);
 
+  // Daily AI batch extraction at 10:30 local time.
+  cron.schedule("30 10 * * *", () => {
+    runAiBatch().catch((e) => console.error("AI batch failed:", e));
+  });
+
   // Run all immediately on startup
   checkPendingTasks();
   scheduleNewTasks();
   checkPriceDrops();
   cleanupOldFiles();
+  // Catch up if today's batch hasn't run yet (e.g., after a restart past 10:30).
+  runAiBatch({ catchUpOnly: true }).catch((e) =>
+    console.error("AI batch catch-up failed:", e)
+  );
 
   console.log(
-    "Scraper worker started. Checking for tasks and price drops every 30 seconds, scheduling new tasks every 5 minutes, and cleaning up old files daily..."
+    "Scraper worker started. Checking for tasks and price drops every 30 seconds, scheduling new tasks every 5 minutes, cleaning up old files daily, and running AI extraction batch at 10:30 local..."
   );
 }
 

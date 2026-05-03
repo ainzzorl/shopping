@@ -54,6 +54,7 @@
                             <th>Executed</th>
                             <th>Status</th>
                             <th>Price</th>
+                            <th>Stock</th>
                             <th>vs Target</th>
                             <th>Resources</th>
                             <th>Error</th>
@@ -80,11 +81,45 @@
                                     <% } else { %>
                                         <span class="badge bg-danger">Failed</span>
                                     <% } %>
+                                    <% if (task.was_blocked === 1) { %>
+                                        <br><span class="badge bg-danger mt-1">Blocked</span>
+                                    <% } else if (task.success === 1) { %>
+                                        <% if (!task.ai_processed_at) { %>
+                                            <br><span class="badge bg-secondary mt-1">AI: pending</span>
+                                        <% } else if (task.ai_error) { %>
+                                            <br><span class="badge bg-warning text-dark mt-1" title="<%= task.ai_error %>">AI: <%= task.ai_error %></span>
+                                        <% } else { %>
+                                            <br><span class="badge bg-success mt-1">AI: ✓</span>
+                                        <% } %>
+                                    <% } %>
                                 </td>
                                 <td>
                                     <% if (task.price !== null && task.price !== undefined) { %>
                                         $<%= task.price.toFixed(2) %>
+                                        <% if (task.dp_source === 'ai') { %>
+                                            <small class="text-muted">(AI)</small>
+                                        <% } else if (task.dp_source === 'ai_oos') { %>
+                                            <small class="text-muted">(HTML, OOS)</small>
+                                        <% } else if (task.dp_source) { %>
+                                            <small class="text-muted">(HTML)</small>
+                                        <% } %>
+                                        <% if (task.ai_price !== null && task.ai_price !== undefined && task.dp_source !== 'ai') { %>
+                                            <br><small class="text-muted">AI: $<%= task.ai_price.toFixed(2) %></small>
+                                        <% } %>
                                     <% } else { %>
+                                        <span class="text-muted">—</span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <% if (task.dp_in_stock === 0) { %>
+                                        <span class="badge bg-warning text-dark">Out of stock</span>
+                                    <% } else if (task.dp_in_stock === 1) { %>
+                                        <span class="badge bg-success">In stock</span>
+                                    <% } %>
+                                    <% if (task.dp_available === 0) { %>
+                                        <span class="badge bg-secondary">Unavailable</span>
+                                    <% } %>
+                                    <% if (task.dp_in_stock === null && task.dp_available === null) { %>
                                         <span class="text-muted">—</span>
                                     <% } %>
                                 </td>

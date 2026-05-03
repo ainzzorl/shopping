@@ -92,6 +92,12 @@
                                                             <small class="text-muted">
                                                                 (<%= moment(item.price_timestamp).fromNow() %>)
                                                             </small>
+                                                            <% if (item.current_in_stock === 0) { %>
+                                                                <br><span class="badge bg-warning text-dark">Out of stock</span>
+                                                            <% } %>
+                                                            <% if (item.current_available === 0) { %>
+                                                                <br><span class="badge bg-secondary">Unavailable</span>
+                                                            <% } %>
                                                             <% } else { %>
                                                                 <i class="bi bi-exclamation-triangle-fill text-warning"
                                                                     title="No successful scrape in 3+ days"></i>

@@ -33,17 +33,25 @@ app.get("/", (req, res) => {
   const validColumns = ["name", "store_name", "target_price", "current_price"];
   const safeColumn = validColumns.includes(sortColumn) ? sortColumn : "name";
 
+  // Latest datapoint per item, restricted to those that have been vetted by the
+  // AI batch (or pre-deploy datapoints with no task_id) so a fresh HTML scrape
+  // doesn't surface here until AI has had a chance to override or flag it.
   const query = `
         SELECT i.*,
                d.price as current_price,
                d.timestamp as price_timestamp,
+               d.in_stock as current_in_stock,
+               d.available as current_available,
+               d.source as current_source,
                s.name as store_name,
                s.website as store_website
         FROM items i
         LEFT JOIN (
-            SELECT item_id, MAX(timestamp) AS max_timestamp
-            FROM item_datapoints
-            GROUP BY item_id
+            SELECT dp.item_id, MAX(dp.timestamp) AS max_timestamp
+            FROM item_datapoints dp
+            LEFT JOIN scraping_tasks st ON st.id = dp.task_id
+            WHERE dp.task_id IS NULL OR st.ai_processed_at IS NOT NULL
+            GROUP BY dp.item_id
         ) m ON m.item_id = i.id
         LEFT JOIN item_datapoints d
             ON d.item_id = m.item_id AND d.timestamp = m.max_timestamp
@@ -133,10 +141,15 @@ app.get("/items/:id", (req, res) => {
       SELECT
         st.*,
         dp.price,
-        dp.timestamp as price_timestamp
+        dp.timestamp as price_timestamp,
+        dp.in_stock as dp_in_stock,
+        dp.available as dp_available,
+        dp.source as dp_source
       FROM scraping_tasks st
-      LEFT JOIN item_datapoints dp ON st.item_id = dp.item_id
-        AND datetime(st.execution_time) = datetime(dp.timestamp)
+      LEFT JOIN item_datapoints dp
+        ON dp.task_id = st.id
+        OR (dp.task_id IS NULL AND dp.item_id = st.item_id
+            AND datetime(dp.timestamp) = datetime(st.execution_time))
       WHERE st.item_id = ?
       ORDER BY st.scheduled_time DESC
     `;
