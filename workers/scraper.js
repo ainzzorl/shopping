@@ -414,7 +414,8 @@ async function scrapePrice(url) {
         const hasBlockedText = bodyText.includes('access blocked') || 
                                bodyText.includes('access denied') ||
                                bodyText.includes('unusual activity') ||
-                               bodyText.includes('automated') ||
+                               bodyText.includes('automated traffic') ||
+                               bodyText.includes('automated requests') ||
                                bodyText.includes('captcha') ||
                                bodyText.includes('verify you are human') ||
                                bodyText.includes('security check');
