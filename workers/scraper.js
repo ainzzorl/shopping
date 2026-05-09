@@ -6,7 +6,7 @@ const fs = require("fs").promises;
 const os = require("os");
 const db = require("../models/database");
 const { sendPriceAlert } = require("../services/notificationService");
-const { runAiBatch } = require("./aiBatch");
+const { runAiBatch, sweepStalePending } = require("./aiBatch");
 const { dismissPopups } = require("./popupDismiss");
 
 // Configure stealth plugin with all evasions
@@ -74,10 +74,12 @@ async function updateTaskStatus(
   errorMessage = null,
   wasBlocked = false
 ) {
+  // success may be true / false / null. null means "verdict deferred to AI batch".
+  const successValue = success === null ? null : success ? 1 : 0;
   return new Promise((resolve, reject) => {
     db.run(
       "UPDATE scraping_tasks SET execution_time = datetime('now', 'localtime'), success = ?, screenshot_path = ?, html_path = ?, error_message = ?, was_blocked = ? WHERE id = ?",
-      [success ? 1 : 0, screenshotPath, htmlPath, errorMessage, wasBlocked ? 1 : 0, taskId],
+      [successValue, screenshotPath, htmlPath, errorMessage, wasBlocked ? 1 : 0, taskId],
       (err) => {
         if (err) reject(err);
         else resolve();
@@ -542,8 +544,23 @@ async function processTask(task) {
   } catch (error) {
     console.error(`Error processing task ${task.id}:`, error);
     const errorMessage = error.message || String(error);
-    // Pass screenshot and html paths even on failure, if they were captured
-    await updateTaskStatus(task.id, false, relativeScreenshotPath, relativeHtmlPath, errorMessage, wasBlocked);
+    // If the only thing that went wrong is "Could not extract price" but we
+    // still have a screenshot to look at, defer the verdict (success=NULL)
+    // so the daily AI batch can decide whether the page is OOS, has a price
+    // we missed, or is genuinely broken. All other failures (timeouts, browser
+    // crashes, blocked pages) commit the failure verdict immediately.
+    const deferToAi =
+      !!relativeScreenshotPath &&
+      !wasBlocked &&
+      errorMessage === "Could not extract price";
+    await updateTaskStatus(
+      task.id,
+      deferToAi ? null : false,
+      relativeScreenshotPath,
+      relativeHtmlPath,
+      errorMessage,
+      wasBlocked
+    );
   } finally {
     // Always remove task from processing set when done
     processingTasks.delete(task.id);
@@ -669,6 +686,14 @@ if (require.main === module && process.env.NODE_ENV !== "test") {
   // Run the file cleanup once per day
   setInterval(cleanupOldFiles, CLEANUP_INTERVAL);
 
+  // Run the stale-pending watchdog once per day so tasks deferred to AI
+  // don't sit in "Pending" forever if the AI batch is broken.
+  setInterval(() => {
+    sweepStalePending().catch((e) =>
+      console.error("sweepStalePending failed:", e)
+    );
+  }, CLEANUP_INTERVAL);
+
   // Daily AI batch extraction at 10:30 local time.
   cron.schedule("30 10 * * *", () => {
     runAiBatch().catch((e) => console.error("AI batch failed:", e));
@@ -682,6 +707,11 @@ if (require.main === module && process.env.NODE_ENV !== "test") {
   // Catch up if today's batch hasn't run yet (e.g., after a restart past 10:30).
   runAiBatch({ catchUpOnly: true }).catch((e) =>
     console.error("AI batch catch-up failed:", e)
+  );
+  // Also sweep stale pending on startup so a dashboard refresh doesn't show
+  // tasks pending forever after a long downtime.
+  sweepStalePending().catch((e) =>
+    console.error("sweepStalePending failed:", e)
   );
 
   console.log(

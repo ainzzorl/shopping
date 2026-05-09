@@ -50,7 +50,7 @@ db.serialize(() => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         item_id INTEGER NOT NULL,
         timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
-        price REAL NOT NULL,
+        price REAL,
         task_id INTEGER,
         in_stock INTEGER,
         available INTEGER,
@@ -123,6 +123,77 @@ db.serialize(() => {
   alter(`ALTER TABLE item_datapoints ADD COLUMN in_stock INTEGER`);
   alter(`ALTER TABLE item_datapoints ADD COLUMN available INTEGER`);
   alter(`ALTER TABLE item_datapoints ADD COLUMN source TEXT DEFAULT 'html'`);
+
+  // Drop the NOT NULL constraint on item_datapoints.price so AI-only OOS
+  // verdicts can record a datapoint without an HTML/AI price.
+  db.all("PRAGMA table_info(item_datapoints)", (err, cols) => {
+    if (err) {
+      console.error("Failed to inspect item_datapoints schema:", err);
+      return;
+    }
+    const priceCol = cols.find((c) => c.name === "price");
+    if (!priceCol || priceCol.notnull === 0) return;
+
+    console.log("Migrating item_datapoints.price to nullable...");
+    db.serialize(() => {
+      db.run("BEGIN TRANSACTION");
+      db.run(`CREATE TABLE item_datapoints_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id INTEGER NOT NULL,
+        timestamp DATETIME DEFAULT (datetime('now', 'localtime')),
+        price REAL,
+        task_id INTEGER,
+        in_stock INTEGER,
+        available INTEGER,
+        source TEXT DEFAULT 'html',
+        FOREIGN KEY (item_id) REFERENCES items (id),
+        FOREIGN KEY (task_id) REFERENCES scraping_tasks (id)
+      )`);
+      db.run(`INSERT INTO item_datapoints_new
+              (id, item_id, timestamp, price, task_id, in_stock, available, source)
+              SELECT id, item_id, timestamp, price, task_id, in_stock, available, source
+              FROM item_datapoints`);
+      db.run("DROP TABLE item_datapoints");
+      db.run("ALTER TABLE item_datapoints_new RENAME TO item_datapoints");
+      db.run(`CREATE INDEX IF NOT EXISTS idx_datapoints_item_timestamp
+              ON item_datapoints (item_id, timestamp DESC)`);
+      db.run("COMMIT", (commitErr) => {
+        if (commitErr) {
+          console.error("Failed to migrate item_datapoints.price:", commitErr);
+        } else {
+          console.log("item_datapoints.price is now nullable");
+        }
+      });
+    });
+  });
+
+  // One-time-style backfill (idempotent): tasks that previously failed only
+  // because the HTML extractor couldn't find a price get reset to "pending",
+  // so the AI batch can take a look. Bounded to roughly the AI batch's
+  // lookback window — older rows are left alone (AI batch wouldn't pick them
+  // up anyway, and the watchdog would just re-fail them with extra noise).
+  const BACKFILL_HOURS = parseInt(process.env.AI_BATCH_LOOKBACK_HOURS, 10) || 36;
+  db.run(
+    `UPDATE scraping_tasks
+     SET success = NULL,
+         ai_processed_at = NULL
+     WHERE success = 0
+       AND error_message = 'Could not extract price'
+       AND screenshot_path IS NOT NULL
+       AND (was_blocked IS NULL OR was_blocked = 0)
+       AND ai_processed_at IS NULL
+       AND execution_time >= datetime('now', '-' || ? || ' hours')`,
+    [BACKFILL_HOURS],
+    function (err) {
+      if (err) {
+        console.error("Failed to backfill pending failures:", err);
+      } else if (this.changes > 0) {
+        console.log(
+          `Backfilled ${this.changes} task(s) from failed → pending for AI rescue`
+        );
+      }
+    }
+  );
 });
 
 module.exports = db;

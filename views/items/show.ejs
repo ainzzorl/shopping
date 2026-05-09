@@ -144,6 +144,8 @@
                                 <td>
                                     <% if (task.success === 0 && task.error_message) { %>
                                         <small class="text-danger"><%= task.error_message %></small>
+                                    <% } else if (task.success === null && task.error_message) { %>
+                                        <small class="text-warning"><%= task.error_message %></small>
                                     <% } else { %>
                                         <span class="text-muted">—</span>
                                     <% } %>
