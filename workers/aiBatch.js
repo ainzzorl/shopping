@@ -196,6 +196,7 @@ async function processOneTask(task, model) {
   try {
     ai = await extractFromScreenshot(absPath, {
       url: task.url,
+      finalUrl: task.final_url,
       itemName: task.item_name,
     });
   } catch (e) {
@@ -302,7 +303,7 @@ async function runAiBatch(opts = {}) {
     }
 
     const tasks = await dbAll(
-      `SELECT t.id AS task_id, t.item_id, t.url, t.screenshot_path,
+      `SELECT t.id AS task_id, t.item_id, t.url, t.final_url, t.screenshot_path,
               t.success AS prior_success, i.name AS item_name
        FROM scraping_tasks t
        JOIN items i ON i.id = t.item_id

@@ -72,20 +72,43 @@ async function updateTaskStatus(
   screenshotPath = null,
   htmlPath = null,
   errorMessage = null,
-  wasBlocked = false
+  wasBlocked = false,
+  finalUrl = null
 ) {
   // success may be true / false / null. null means "verdict deferred to AI batch".
   const successValue = success === null ? null : success ? 1 : 0;
   return new Promise((resolve, reject) => {
     db.run(
-      "UPDATE scraping_tasks SET execution_time = datetime('now', 'localtime'), success = ?, screenshot_path = ?, html_path = ?, error_message = ?, was_blocked = ? WHERE id = ?",
-      [successValue, screenshotPath, htmlPath, errorMessage, wasBlocked ? 1 : 0, taskId],
+      "UPDATE scraping_tasks SET execution_time = datetime('now', 'localtime'), success = ?, screenshot_path = ?, html_path = ?, error_message = ?, was_blocked = ?, final_url = ? WHERE id = ?",
+      [successValue, screenshotPath, htmlPath, errorMessage, wasBlocked ? 1 : 0, finalUrl, taskId],
       (err) => {
         if (err) reject(err);
         else resolve();
       }
     );
   });
+}
+
+// Heuristic: did navigating to `originalUrl` end up somewhere that clearly
+// isn't the requested product page? Catches the case where a seller 301s a
+// dead product URL back to the homepage / a category landing page, where the
+// HTML extractor will happily pick up some unrelated price. Path collapse is
+// the strong signal — locale/canonicalization redirects (different host,
+// same path) deliberately don't trigger.
+function looksRedirectedAway(originalUrl, finalUrl) {
+  if (!finalUrl || originalUrl === finalUrl) return false;
+  let orig, fin;
+  try {
+    orig = new URL(originalUrl);
+    fin = new URL(finalUrl);
+  } catch (_) {
+    return false;
+  }
+  const origSegs = orig.pathname.split("/").filter(Boolean);
+  const finSegs = fin.pathname.split("/").filter(Boolean);
+  // Original had a product-style path of two or more segments; final landed
+  // at root or a single-segment landing page (/, /sale, /home, /us, ...).
+  return origSegs.length >= 2 && finSegs.length <= 1;
 }
 
 async function createNextTask(itemId, url) {
@@ -444,6 +467,10 @@ async function scrapePrice(url) {
       await dismissPopups(page);
       await delay(500);
 
+      // Capture the post-navigation URL so callers can detect redirects away
+      // from the requested product page.
+      const finalUrl = page.url();
+
       // Take a screenshot
       const screenshot = await page.screenshot();
 
@@ -453,7 +480,7 @@ async function scrapePrice(url) {
       // Extract price using the extractPrice function
       const price = await extractPrice(page);
 
-      return { price, screenshot, html, wasBlocked: blockInfo.isBlocked };
+      return { price, screenshot, html, wasBlocked: blockInfo.isBlocked, finalUrl };
     })();
 
     const result = await Promise.race([scrapingPromise, timeoutPromise]);
@@ -508,12 +535,14 @@ async function processTask(task) {
   let relativeScreenshotPath = null;
   let relativeHtmlPath = null;
   let wasBlocked = false;
+  let finalUrl = null;
 
   try {
     // Perform the scraping
     const scrape = await scrapePrice(task.url);
     const { price, screenshot, html } = scrape;
     wasBlocked = !!scrape.wasBlocked;
+    finalUrl = scrape.finalUrl || null;
 
     // Save the screenshot if available
     if (screenshot) {
@@ -531,6 +560,31 @@ async function processTask(task) {
       relativeHtmlPath = `results/${htmlFilename}`;
     }
 
+    // The seller redirected the product URL away (typically to its homepage
+    // or a category page). Any price the HTML extractor pulled belongs to
+    // some unrelated item — discard it and defer the verdict to the AI batch,
+    // which will see the original + final URLs in its prompt and mark the
+    // item unavailable.
+    if (
+      !wasBlocked &&
+      relativeScreenshotPath &&
+      looksRedirectedAway(task.url, finalUrl)
+    ) {
+      await updateTaskStatus(
+        task.id,
+        null,
+        relativeScreenshotPath,
+        relativeHtmlPath,
+        `Redirected to ${finalUrl}`,
+        wasBlocked,
+        finalUrl
+      );
+      console.log(
+        `Task ${task.id}: ${task.url} redirected to ${finalUrl}; deferring to AI`
+      );
+      return;
+    }
+
     if (!price) {
       throw new Error("Could not extract price");
     }
@@ -539,7 +593,15 @@ async function processTask(task) {
     await saveDataPoint(task.item_id, price, task.id);
 
     // Update task status with relative paths (for web access)
-    await updateTaskStatus(task.id, true, relativeScreenshotPath, relativeHtmlPath, null, wasBlocked);
+    await updateTaskStatus(
+      task.id,
+      true,
+      relativeScreenshotPath,
+      relativeHtmlPath,
+      null,
+      wasBlocked,
+      finalUrl
+    );
 
     console.log(`Successfully processed task ${task.id}`);
   } catch (error) {
@@ -560,7 +622,8 @@ async function processTask(task) {
       relativeScreenshotPath,
       relativeHtmlPath,
       errorMessage,
-      wasBlocked
+      wasBlocked,
+      finalUrl
     );
   } finally {
     // Always remove task from processing set when done
@@ -733,4 +796,5 @@ module.exports = {
   getPendingTasks,
   saveDataPoint,
   cleanupOldFiles,
+  looksRedirectedAway,
 };

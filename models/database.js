@@ -118,6 +118,7 @@ db.serialize(() => {
   alter(`ALTER TABLE scraping_tasks ADD COLUMN ai_model TEXT`);
   alter(`ALTER TABLE scraping_tasks ADD COLUMN ai_latency_ms INTEGER`);
   alter(`ALTER TABLE scraping_tasks ADD COLUMN ai_error TEXT`);
+  alter(`ALTER TABLE scraping_tasks ADD COLUMN final_url TEXT`);
 
   alter(`ALTER TABLE item_datapoints ADD COLUMN task_id INTEGER`);
   alter(`ALTER TABLE item_datapoints ADD COLUMN in_stock INTEGER`);

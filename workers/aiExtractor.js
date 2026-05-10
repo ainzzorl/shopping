@@ -1,6 +1,6 @@
 const fs = require("fs").promises;
 
-const PROMPT_VERSION = "v2";
+const PROMPT_VERSION = "v3";
 
 const DEFAULTS = {
   baseUrl: process.env.AI_VISION_BASE_URL || "http://framework-desktop.local:1234/v1",
@@ -47,9 +47,15 @@ const RESPONSE_SCHEMA = {
   },
 };
 
-function buildPrompt({ url, itemName } = {}) {
+function buildPrompt({ url, finalUrl, itemName } = {}) {
   const lines = ["Extract from this product page screenshot."];
-  if (url) lines.push(`URL: ${url}`);
+  if (url) lines.push(`Requested URL: ${url}`);
+  if (finalUrl && finalUrl !== url) {
+    lines.push(`Page actually rendered at: ${finalUrl}`);
+    lines.push(
+      "If the requested URL was redirected to a homepage, category page, search page, or any unrelated landing page, the original product is no longer in the catalog — set available=false and price=null (any price visible belongs to a different item)."
+    );
+  }
   if (itemName) lines.push(`Item: ${itemName}`);
   lines.push("Return JSON only.");
   return lines.join("\n");
