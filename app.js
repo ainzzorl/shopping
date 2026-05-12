@@ -28,6 +28,7 @@ app.locals.moment = moment;
 app.get("/", (req, res) => {
   const sortColumn = req.query.sort || "store_name"; // Default sort by store name
   const sortOrder = req.query.order === "desc" ? "DESC" : "ASC";
+  const dealsOnly = req.query.deals === "1";
 
   // Validate sort column to prevent SQL injection
   const validColumns = ["name", "store_name", "target_price", "current_price"];
@@ -56,6 +57,11 @@ app.get("/", (req, res) => {
         LEFT JOIN item_datapoints d
             ON d.item_id = m.item_id AND d.timestamp = m.max_timestamp
         LEFT JOIN stores s ON i.store_id = s.id
+        ${
+          dealsOnly
+            ? "WHERE d.price IS NOT NULL AND d.price < i.target_price AND (d.in_stock IS NULL OR d.in_stock <> 0) AND (d.available IS NULL OR d.available <> 0) AND d.timestamp >= datetime('now', '-3 days')"
+            : ""
+        }
         ORDER BY ${
           safeColumn === "current_price"
             ? "d.price"
@@ -74,6 +80,7 @@ app.get("/", (req, res) => {
       items,
       currentSort: sortColumn,
       currentOrder: sortOrder.toLowerCase(),
+      dealsOnly,
     });
   });
 });

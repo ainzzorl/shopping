@@ -9,12 +9,21 @@
                 </div>
             </div>
 
+            <% const dealsSuffix = dealsOnly ? '&deals=1' : ''; %>
+            <div class="form-check form-switch mb-3">
+                <input class="form-check-input" type="checkbox" id="dealsOnlyToggle" <%= dealsOnly ? 'checked' : '' %>
+                    onchange="var p = new URLSearchParams(window.location.search); if (this.checked) { p.set('deals', '1'); } else { p.delete('deals'); } var q = p.toString(); window.location.search = q ? '?' + q : '';">
+                <label class="form-check-label" for="dealsOnlyToggle">
+                    Show only available items below target price
+                </label>
+            </div>
+
             <div class="table-responsive">
                 <table class="table table-striped">
                     <thead>
                         <tr>
                             <th>
-                                <a href="/?sort=name&order=<%= currentSort === 'name' && currentOrder === 'asc' ? 'desc' : 'asc' %>"
+                                <a href="/?sort=name&order=<%= currentSort === 'name' && currentOrder === 'asc' ? 'desc' : 'asc' %><%= dealsSuffix %>"
                                     class="text-decoration-none text-dark">
                                     Name
                                     <% if (currentSort==='name' ) { %>
@@ -23,7 +32,7 @@
                                 </a>
                             </th>
                             <th>
-                                <a href="/?sort=store_name&order=<%= currentSort === 'store_name' && currentOrder === 'asc' ? 'desc' : 'asc' %>"
+                                <a href="/?sort=store_name&order=<%= currentSort === 'store_name' && currentOrder === 'asc' ? 'desc' : 'asc' %><%= dealsSuffix %>"
                                     class="text-decoration-none text-dark">
                                     Store
                                     <% if (currentSort==='store_name' ) { %>
@@ -32,7 +41,7 @@
                                 </a>
                             </th>
                             <th>
-                                <a href="/?sort=target_price&order=<%= currentSort === 'target_price' && currentOrder === 'asc' ? 'desc' : 'asc' %>"
+                                <a href="/?sort=target_price&order=<%= currentSort === 'target_price' && currentOrder === 'asc' ? 'desc' : 'asc' %><%= dealsSuffix %>"
                                     class="text-decoration-none text-dark">
                                     Target Price
                                     <% if (currentSort==='target_price' ) { %>
@@ -41,7 +50,7 @@
                                 </a>
                             </th>
                             <th>
-                                <a href="/?sort=current_price&order=<%= currentSort === 'current_price' && currentOrder === 'asc' ? 'desc' : 'asc' %>"
+                                <a href="/?sort=current_price&order=<%= currentSort === 'current_price' && currentOrder === 'asc' ? 'desc' : 'asc' %><%= dealsSuffix %>"
                                     class="text-decoration-none text-dark">
                                     Current Price
                                     <% if (currentSort==='current_price' ) { %>
