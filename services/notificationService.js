@@ -75,6 +75,13 @@ async function sendPriceAlert(item, currentPrice) {
     if (client) {
       console.log("Sending message to Telegram");
       await Promise.race([(async () => {
+        // The worker is long-running and Telegram can silently drop an idle
+        // connection; getEntity/sendMessage would then hang on a dead socket.
+        // Reconnect if needed before sending.
+        if (!client.connected) {
+          console.log("Telegram client not connected, reconnecting");
+          await client.connect();
+        }
         let entity = await client.getEntity(telegramConfig.channelId);
         console.log("Entity found");
         await client.sendMessage(entity, {
