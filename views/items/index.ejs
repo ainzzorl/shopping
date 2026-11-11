@@ -1,14 +1,14 @@
 <%- contentFor('body') %>
     <div class="row">
         <div class="col">
-            <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="page-header mb-3">
                 <h1>Items</h1>
-                <div>
+                <div class="actions">
                     <form action="/ai/run" method="POST" class="d-inline">
-                        <button type="submit" class="btn btn-outline-secondary me-2"
+                        <button type="submit" class="btn btn-outline-secondary"
                             onclick="return confirm('Run AI extraction for all pending tasks now?')">Run AI on pending</button>
                     </form>
-                    <a href="/stores" class="btn btn-outline-primary me-2">Manage Stores</a>
+                    <a href="/stores" class="btn btn-outline-primary">Manage Stores</a>
                     <a href="/items/new" class="btn btn-primary">Add New Item</a>
                 </div>
             </div>
@@ -26,8 +26,18 @@
                 </label>
             </div>
 
+            <% const sortOptions = [['name', 'Name'], ['store_name', 'Store'], ['target_price', 'Target Price'], ['current_price', 'Current Price']]; %>
+            <select class="form-select mb-3 d-md-none" aria-label="Sort"
+                onchange="window.location.href = this.value">
+                <% sortOptions.forEach(([key, label]) => { ['asc', 'desc'].forEach(order => { %>
+                    <option value="/?sort=<%= key %>&order=<%= order %><%= dealsSuffix %>" <%= currentSort === key && currentOrder === order ? 'selected' : '' %>>
+                        Sort: <%= label %> <%= order === 'asc' ? '↑' : '↓' %>
+                    </option>
+                <% }); }); %>
+            </select>
+
             <div class="table-responsive">
-                <table class="table table-striped">
+                <table class="table table-striped table-stack">
                     <thead>
                         <tr>
                             <th>
@@ -74,12 +84,12 @@
                         <% items.forEach(item=> { %>
                             <tr
                                 class="<%= !item.enabled ? 'text-muted opacity-50' : (!item.enable_notifications ? 'opacity-75' : '') %>">
-                                <td>
+                                <td class="stack-title">
                                     <a href="<%= item.url %>" target="_blank" class="text-decoration-none">
                                         <%= item.name %>
                                     </a>
                                 </td>
-                                <td>
+                                <td data-label="Store">
                                     <% if (item.store_name) { %>
                                         <a href="<%= item.store_website %>" target="_blank"
                                             class="text-decoration-none">
@@ -89,9 +99,9 @@
                                             <span class="text-muted">No store</span>
                                             <% } %>
                                 </td>
-                                <td>$<%= item.target_price.toFixed(2) %>
+                                <td data-label="Target">$<%= item.target_price.toFixed(2) %>
                                 </td>
-                                <td>
+                                <td data-label="Current"><div>
                                     <% if (item.current_price) { %>
                                         <% const daysSincePrice=moment().diff(moment(item.price_timestamp), 'days' ); %>
                                             <% if (daysSincePrice> 3) { %>
@@ -132,8 +142,8 @@
                                                                     title="No successful scrape in 3+ days"></i>
                                                                 <span class="text-muted">No data yet</span>
                                                                 <% } %>
-                                </td>
-                                <td>
+                                </div></td>
+                                <td data-label="Status"><div>
                                     <span class="badge <%= item.enabled ? 'bg-success' : 'bg-secondary' %>">
                                         <%= item.enabled ? 'Enabled' : 'Disabled' %>
                                     </span>
@@ -142,8 +152,8 @@
                                         class="badge <%= item.enable_notifications ? 'bg-info' : 'bg-warning' %> mt-1">
                                         Notifications: <%= item.enable_notifications ? 'On' : 'Off' %>
                                     </small>
-                                </td>
-                                <td>
+                                </div></td>
+                                <td class="stack-actions">
                                     <a href="/items/<%= item.id %>" class="btn btn-sm btn-info">View</a>
                                     <a href="/items/<%= item.id %>/edit" class="btn btn-sm btn-warning">Edit</a>
                                     <form action="/items/<%= item.id %>/delete" method="POST" class="d-inline">

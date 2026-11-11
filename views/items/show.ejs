@@ -1,10 +1,10 @@
 <div class="row">
     <div class="col-md-12">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="page-header mb-4">
             <h1>
                 <%= item.name %>
             </h1>
-            <div>
+            <div class="actions">
                 <% if (item.enabled) { %>
                     <form action="/items/<%= item.id %>/scrape" method="POST" class="d-inline">
                         <button type="submit" class="btn btn-primary">Scrape now</button>
@@ -22,7 +22,7 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-8">
-                        <p><strong>URL:</strong> <a href="<%= item.url %>" target="_blank">
+                        <p><strong>URL:</strong> <a href="<%= item.url %>" target="_blank" class="break-all">
                                 <%= item.url %>
                             </a></p>
                         <p><strong>Target Price:</strong> $<%= item.target_price.toFixed(2) %>
@@ -52,7 +52,7 @@
         <h2>Scraping & Price History</h2>
         <% if (scrapingTasks.length> 0) { %>
             <div class="table-responsive">
-                <table class="table table-striped">
+                <table class="table table-striped table-stack">
                     <thead>
                         <tr>
                             <th>Scheduled</th>
@@ -68,17 +68,17 @@
                     <tbody>
                         <% scrapingTasks.forEach(task=> { %>
                             <tr>
-                                <td>
+                                <td data-label="Scheduled"><div>
                                     <%= moment(task.scheduled_time).format('YYYY-MM-DD HH:mm:ss') %>
-                                </td>
-                                <td>
+                                </div></td>
+                                <td data-label="Executed"><div>
                                     <% if (task.execution_time) { %>
                                         <%= moment(task.execution_time).format('YYYY-MM-DD HH:mm:ss') %>
                                     <% } else { %>
                                         <span class="text-muted">Pending</span>
                                     <% } %>
-                                </td>
-                                <td>
+                                </div></td>
+                                <td data-label="Status"><div>
                                     <% if (task.success === null) { %>
                                         <span class="badge bg-secondary">Pending</span>
                                     <% } else if (task.success) { %>
@@ -97,8 +97,8 @@
                                             <br><span class="badge bg-success mt-1">AI: ✓</span>
                                         <% } %>
                                     <% } %>
-                                </td>
-                                <td>
+                                </div></td>
+                                <td data-label="Price"><div>
                                     <% if (task.price !== null && task.price !== undefined) { %>
                                         $<%= task.price.toFixed(2) %>
                                         <% if (task.dp_source === 'ai') { %>
@@ -114,8 +114,8 @@
                                     <% } else { %>
                                         <span class="text-muted">—</span>
                                     <% } %>
-                                </td>
-                                <td>
+                                </div></td>
+                                <td data-label="Stock"><div>
                                     <% if (task.dp_in_stock === 0) { %>
                                         <span class="badge bg-warning text-dark">Out of stock</span>
                                     <% } else if (task.dp_in_stock === 1) { %>
@@ -127,8 +127,8 @@
                                     <% if (task.dp_in_stock === null && task.dp_available === null) { %>
                                         <span class="text-muted">—</span>
                                     <% } %>
-                                </td>
-                                <td>
+                                </div></td>
+                                <td data-label="vs Target"><div>
                                     <% if (task.price !== null && task.price !== undefined) { %>
                                         <% const diff=task.price - item.target_price; %>
                                         <span class="<%= diff > 0 ? 'text-danger' : 'text-success' %>">
@@ -137,16 +137,16 @@
                                     <% } else { %>
                                         <span class="text-muted">—</span>
                                     <% } %>
-                                </td>
-                                <td>
+                                </div></td>
+                                <td data-label="Resources"><div>
                                     <% if (task.screenshot_path) { %>
                                         <a href="/<%= task.screenshot_path.replace(/^.*[\/\\]results[\/\\]/, 'results/') %>" target="_blank" class="btn btn-sm btn-outline-primary">Screenshot</a>
                                     <% } %>
                                     <% if (task.html_path) { %>
                                         <a href="/<%= task.html_path.replace(/^.*[\/\\]results[\/\\]/, 'results/') %>" target="_blank" class="btn btn-sm btn-outline-secondary">HTML</a>
                                     <% } %>
-                                </td>
-                                <td>
+                                </div></td>
+                                <td data-label="Error"><div>
                                     <% if (task.success === 0 && task.error_message) { %>
                                         <small class="text-danger"><%= task.error_message %></small>
                                     <% } else if (task.success === null && task.error_message) { %>
@@ -154,7 +154,7 @@
                                     <% } else { %>
                                         <span class="text-muted">—</span>
                                     <% } %>
-                                </td>
+                                </div></td>
                             </tr>
                             <% }); %>
                     </tbody>
