@@ -121,6 +121,14 @@ db.serialize(() => {
   alter(`ALTER TABLE scraping_tasks ADD COLUMN final_url TEXT`);
   // Set by the "Scrape now" button: run AI extraction right after scraping.
   alter(`ALTER TABLE scraping_tasks ADD COLUMN force_ai INTEGER DEFAULT 0`);
+  // AI result cache: hash of the model input, and the task a cached verdict
+  // was copied from (NULL when the model was actually called).
+  alter(`ALTER TABLE scraping_tasks ADD COLUMN ai_input_hash TEXT`);
+  alter(`ALTER TABLE scraping_tasks ADD COLUMN ai_cached_from INTEGER`);
+  db.run(
+    `CREATE INDEX IF NOT EXISTS idx_tasks_ai_input_hash
+       ON scraping_tasks (ai_input_hash)`
+  );
   // Non-null for single-task AI runs, which don't count as the daily batch.
   alter(`ALTER TABLE ai_batch_runs ADD COLUMN task_id INTEGER`);
 

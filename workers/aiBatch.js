@@ -3,7 +3,7 @@ const fsp = require("fs").promises;
 const os = require("os");
 const path = require("path");
 const db = require("../models/database");
-const { extractFromScreenshot } = require("./aiExtractor");
+const { extractFromScreenshot, inputHash } = require("./aiExtractor");
 const { startLmServer, loadModel, unloadModel } = require("./lmsClient");
 
 const PROJECT_ROOT = path.join(__dirname, "..");
@@ -94,6 +94,34 @@ function boolToInt(v) {
   if (v === true) return 1;
   if (v === false) return 0;
   return null;
+}
+
+function intToBool(v) {
+  if (v === 1) return true;
+  if (v === 0) return false;
+  return null;
+}
+
+// Most recent error-free verdict for an identical model input, if any.
+async function findCachedVerdict(hash, taskId) {
+  const row = await dbGet(
+    `SELECT id, ai_price, ai_in_stock, ai_available, ai_model
+     FROM scraping_tasks
+     WHERE ai_input_hash = ? AND ai_error IS NULL AND id != ?
+     ORDER BY id DESC LIMIT 1`,
+    [hash, taskId]
+  );
+  if (!row) return null;
+  return {
+    cachedFrom: row.id,
+    ai: {
+      price: row.ai_price,
+      in_stock: intToBool(row.ai_in_stock),
+      available: intToBool(row.ai_available),
+      model: row.ai_model,
+      latency_ms: 0,
+    },
+  };
 }
 
 async function applyAiResultToDatapoint(task, ai) {
@@ -194,12 +222,22 @@ async function processOneTask(task, model) {
     return { ok: false, reason: "screenshot_missing" };
   }
 
+  let hash;
+  let cachedFrom = null;
   try {
-    ai = await extractFromScreenshot(absPath, {
+    const buffer = await fsp.readFile(absPath);
+    const promptOpts = {
       url: task.url,
       finalUrl: task.final_url,
       itemName: task.item_name,
-    });
+    };
+    hash = inputHash(buffer, promptOpts);
+    const cached = await findCachedVerdict(hash, task.task_id);
+    if (cached) {
+      ({ ai, cachedFrom } = cached);
+    } else {
+      ai = await extractFromScreenshot(buffer, promptOpts);
+    }
   } catch (e) {
     const errMsg = `exception: ${e.message || String(e)}`.slice(0, 500);
     const newSuccess = resolvePendingSuccess(priorSuccess, { error: errMsg });
@@ -224,33 +262,27 @@ async function processOneTask(task, model) {
          ai_available = ?,
          ai_model = ?,
          ai_latency_ms = ?,
-         ai_error = ?
+         ai_error = ?,
+         ai_input_hash = ?,
+         ai_cached_from = ?
          ${newSuccess !== null ? ", success = ?" : ""}
      WHERE id = ?`,
-    newSuccess !== null
-      ? [
-          typeof ai.price === "number" && Number.isFinite(ai.price) ? ai.price : null,
-          boolToInt(ai.in_stock),
-          boolToInt(ai.available),
-          ai.model || model,
-          ai.latency_ms ?? null,
-          ai.error || null,
-          newSuccess,
-          task.task_id,
-        ]
-      : [
-          typeof ai.price === "number" && Number.isFinite(ai.price) ? ai.price : null,
-          boolToInt(ai.in_stock),
-          boolToInt(ai.available),
-          ai.model || model,
-          ai.latency_ms ?? null,
-          ai.error || null,
-          task.task_id,
-        ]
+    [
+      typeof ai.price === "number" && Number.isFinite(ai.price) ? ai.price : null,
+      boolToInt(ai.in_stock),
+      boolToInt(ai.available),
+      ai.model || model,
+      ai.latency_ms ?? null,
+      ai.error || null,
+      hash,
+      cachedFrom,
+      ...(newSuccess !== null ? [newSuccess] : []),
+      task.task_id,
+    ]
   );
 
   await applyAiResultToDatapoint(task, ai);
-  return { ok: !ai.error, ai };
+  return { ok: !ai.error, ai, cachedFrom };
 }
 
 async function runAiBatch(opts = {}) {
@@ -340,7 +372,9 @@ async function runAiBatch(opts = {}) {
           processed++;
           const ai = res.ai || {};
           console.log(
-            `  task ${task.task_id} (${task.item_name}): price=${ai.price}, in_stock=${ai.in_stock}, available=${ai.available}, ${ai.latency_ms}ms`
+            `  task ${task.task_id} (${task.item_name}): price=${ai.price}, in_stock=${ai.in_stock}, available=${ai.available}, ${
+              res.cachedFrom ? `cached from task ${res.cachedFrom}` : `${ai.latency_ms}ms`
+            }`
           );
         } else {
           failed++;

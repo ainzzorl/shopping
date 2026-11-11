@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const fs = require("fs").promises;
 
 const PROMPT_VERSION = "v3";
@@ -175,6 +176,16 @@ async function callApi({ baseUrl, apiKey, body, timeoutMs, signal }) {
   }
 }
 
+// Hash of everything the model sees (prompts, model, image), so identical
+// inputs can reuse an earlier verdict instead of calling the model again.
+function inputHash(buffer, opts = {}) {
+  return crypto
+    .createHash("sha256")
+    .update(JSON.stringify([opts.model || DEFAULTS.model, SYSTEM_PROMPT, buildPrompt(opts)]))
+    .update(buffer)
+    .digest("hex");
+}
+
 async function extractFromScreenshot(input, opts = {}) {
   const cfg = {
     baseUrl: opts.baseUrl || DEFAULTS.baseUrl,
@@ -310,6 +321,7 @@ async function extractFromScreenshot(input, opts = {}) {
 
 module.exports = {
   extractFromScreenshot,
+  inputHash,
   buildPrompt,
   PROMPT_VERSION,
 };
