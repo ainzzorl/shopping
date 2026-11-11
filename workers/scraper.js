@@ -685,6 +685,9 @@ async function checkPendingTasks() {
     // Only process the first task (getPendingTasks now returns max 1 task)
     if (tasks.length > 0) {
       await processTask(tasks[0]);
+      if (tasks[0].force_ai) {
+        await runAiBatch({ taskId: tasks[0].id });
+      }
     }
   } catch (error) {
     console.error("Error checking pending tasks:", error);

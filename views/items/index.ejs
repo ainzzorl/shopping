@@ -4,10 +4,18 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h1>Items</h1>
                 <div>
+                    <form action="/ai/run" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-outline-secondary me-2"
+                            onclick="return confirm('Run AI extraction for all pending tasks now?')">Run AI on pending</button>
+                    </form>
                     <a href="/stores" class="btn btn-outline-primary me-2">Manage Stores</a>
                     <a href="/items/new" class="btn btn-primary">Add New Item</a>
                 </div>
             </div>
+
+            <% if (aiStarted) { %>
+                <div class="alert alert-info">AI extraction started in the background. Refresh in a few minutes to see results.</div>
+            <% } %>
 
             <% const dealsSuffix = dealsOnly ? '&deals=1' : ''; %>
             <div class="form-check form-switch mb-3">

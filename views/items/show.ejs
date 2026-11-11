@@ -5,6 +5,11 @@
                 <%= item.name %>
             </h1>
             <div>
+                <% if (item.enabled) { %>
+                    <form action="/items/<%= item.id %>/scrape" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-primary">Scrape now</button>
+                    </form>
+                <% } %>
                 <a href="/items/<%= item.id %>/edit" class="btn btn-warning">Edit</a>
                 <form action="/items/<%= item.id %>/delete" method="POST" class="d-inline">
                     <button type="submit" class="btn btn-danger"

@@ -4,6 +4,7 @@ const path = require("path");
 const moment = require("moment");
 const expressLayouts = require("express-ejs-layouts");
 const db = require("./models/database");
+const { runAiBatch } = require("./workers/aiBatch");
 
 const app = express();
 const port = 3000;
@@ -81,6 +82,7 @@ app.get("/", (req, res) => {
       currentSort: sortColumn,
       currentOrder: sortOrder.toLowerCase(),
       dealsOnly,
+      aiStarted: req.query.ai === "started",
     });
   });
 });
@@ -232,6 +234,59 @@ app.post("/items/:id/delete", (req, res) => {
     }
     res.redirect("/");
   });
+});
+
+// Queue an immediate scrape; the worker runs AI extraction on it right after.
+// Reuses the item's pending task if there is one so we don't end up with two.
+app.post("/items/:id/scrape", (req, res) => {
+  const id = req.params.id;
+  db.get("SELECT * FROM items WHERE id = ?", [id], (err, item) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send("Database error");
+    }
+    if (!item) return res.status(404).send("Item not found");
+    if (!item.enabled) {
+      return res.status(400).send("Item is disabled; enable it to scrape");
+    }
+    const now = new Date().toLocaleString("sv-SE");
+    db.run(
+      `UPDATE scraping_tasks SET scheduled_time = ?, url = ?, force_ai = 1
+       WHERE id = (SELECT id FROM scraping_tasks
+                   WHERE item_id = ? AND execution_time IS NULL
+                   ORDER BY scheduled_time ASC LIMIT 1)`,
+      [now, item.url, id],
+      function (err) {
+        if (err) {
+          console.error(err);
+          return res.status(500).send("Database error");
+        }
+        const done = (err) => {
+          if (err) {
+            console.error(err);
+            return res.status(500).send("Database error");
+          }
+          res.redirect(`/items/${id}`);
+        };
+        if (this.changes > 0) return done();
+        db.run(
+          "INSERT INTO scraping_tasks (item_id, url, scheduled_time, force_ai) VALUES (?, ?, ?, 1)",
+          [id, item.url, now],
+          done
+        );
+      }
+    );
+  });
+});
+
+// Kick off AI extraction for all pending tasks (within the usual lookback),
+// bypassing the once-a-day gate. Runs in the background; the batch lock
+// prevents overlap with the worker's runs.
+app.post("/ai/run", (req, res) => {
+  runAiBatch({ force: true }).catch((e) =>
+    console.error("Manual AI batch failed:", e)
+  );
+  res.redirect("/?ai=started");
 });
 
 // Routes for stores

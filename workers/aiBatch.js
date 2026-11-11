@@ -76,6 +76,7 @@ async function ranSuccessfullyToday() {
   const row = await dbGet(
     `SELECT id FROM ai_batch_runs
      WHERE status IN ('success', 'partial')
+       AND task_id IS NULL
        AND date(started_at) = date('now', 'localtime')
      ORDER BY id DESC LIMIT 1`
   );
@@ -253,7 +254,9 @@ async function processOneTask(task, model) {
 }
 
 async function runAiBatch(opts = {}) {
-  const { force = false, catchUpOnly = false, model = DEFAULT_MODEL } = opts;
+  // taskId: process just that task (ignoring lookback and the once-a-day
+  // gate); such runs don't count as the daily batch.
+  const { force = false, catchUpOnly = false, model = DEFAULT_MODEL, taskId = null } = opts;
 
   const lock = await acquireLock();
   if (!lock.ok) {
@@ -270,7 +273,7 @@ async function runAiBatch(opts = {}) {
   let errorMessage = null;
 
   try {
-    if (!force) {
+    if (!force && taskId === null) {
       const prior = await ranSuccessfullyToday();
       if (prior) {
         console.log(`AI batch already ran today (batch #${prior.id}); skipping.`);
@@ -287,8 +290,8 @@ async function runAiBatch(opts = {}) {
     }
 
     const insert = await dbRun(
-      "INSERT INTO ai_batch_runs (forced) VALUES (?)",
-      [force ? 1 : 0]
+      "INSERT INTO ai_batch_runs (forced, task_id) VALUES (?, ?)",
+      [force || taskId !== null ? 1 : 0, taskId]
     );
     batchRunId = insert.lastID;
     console.log(`AI batch run #${batchRunId} starting`);
@@ -311,16 +314,24 @@ async function runAiBatch(opts = {}) {
          AND (t.was_blocked IS NULL OR t.was_blocked = 0)
          AND t.ai_processed_at IS NULL
          AND t.screenshot_path IS NOT NULL
-         AND t.execution_time >= datetime('now', '-' || ? || ' hours')
+         AND ${
+           taskId !== null
+             ? "t.id = ?"
+             : "t.execution_time >= datetime('now', '-' || ? || ' hours')"
+         }
        ORDER BY t.execution_time ASC`,
-      [LOOKBACK_HOURS]
+      [taskId !== null ? taskId : LOOKBACK_HOURS]
     );
     total = tasks.length;
     await dbRun(
       "UPDATE ai_batch_runs SET tasks_total = ? WHERE id = ?",
       [total, batchRunId]
     );
-    console.log(`AI batch: ${total} candidate task(s) within ${LOOKBACK_HOURS}h`);
+    console.log(
+      taskId !== null
+        ? `AI batch: task ${taskId}${total ? "" : " is not eligible"}`
+        : `AI batch: ${total} candidate task(s) within ${LOOKBACK_HOURS}h`
+    );
 
     for (const task of tasks) {
       try {
