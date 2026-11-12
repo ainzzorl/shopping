@@ -21,7 +21,7 @@
                 <% stores.forEach(store => { %>
                     <tr>
                         <td class="stack-title"><%= store.name %></td>
-                        <td data-label="Website"><a href="<%= store.website %>" target="_blank" class="break-all"><%= store.website %></a></td>
+                        <td data-label="Website"><a href="<%= store.website %>" class="break-all"><%= store.website %></a></td>
                         <td data-label="Items"><%= store.items_count %></td>
                         <td data-label="Created"><%= moment(store.created_at).format('YYYY-MM-DD HH:mm') %></td>
                         <td class="stack-actions">

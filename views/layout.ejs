@@ -42,6 +42,15 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Open links to other origins in a new tab.
+        document.querySelectorAll('a[href]').forEach(function (a) {
+            if (a.origin !== location.origin) {
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+            }
+        });
+    </script>
     <%- defineContent('scripts') %>
 </body>
 </html> 

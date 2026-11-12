@@ -85,13 +85,13 @@
                             <tr
                                 class="<%= !item.enabled ? 'text-muted opacity-50' : (!item.enable_notifications ? 'opacity-75' : '') %>">
                                 <td class="stack-title">
-                                    <a href="<%= item.url %>" target="_blank" class="text-decoration-none">
+                                    <a href="<%= item.url %>" class="text-decoration-none">
                                         <%= item.name %>
                                     </a>
                                 </td>
                                 <td data-label="Store">
                                     <% if (item.store_name) { %>
-                                        <a href="<%= item.store_website %>" target="_blank"
+                                        <a href="<%= item.store_website %>"
                                             class="text-decoration-none">
                                             <%= item.store_name %>
                                         </a>
