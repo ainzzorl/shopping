@@ -445,9 +445,18 @@ async function scrapePrice(url) {
         
         // Suspicious if page is very short and has CAPTCHA elements
         const suspiciouslyShort = bodyLength < 500 && (hasCaptchaIframe || hasCaptchaScript);
-        
+
+        // Bot-manager interstitials (Akamai, Cloudflare, PerimeterX) that use
+        // obfuscated script URLs and may render nothing visible.
+        const hasBotChallenge = document.querySelector(
+          '#sec-if-cpt-container, .scf-akamai-logo, #challenge-form, #cf-challenge-running, #px-captcha'
+        ) !== null;
+
+        // A page with no visible text after the wait is a challenge or a failed load.
+        const isEmpty = bodyLength < 50;
+
         return {
-          isBlocked: hasBlockedText || suspiciouslyShort,
+          isBlocked: hasBlockedText || suspiciouslyShort || hasBotChallenge || isEmpty,
           text: bodyText.substring(0, 500), // First 500 chars for debugging
           title: document.title,
           hasCaptcha: hasCaptchaIframe || hasCaptchaScript
